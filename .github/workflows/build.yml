@@ -11,15 +11,15 @@ permissions:
   contents: read
 
 env:
-  AWS_IAM_ROLE: ${{ vars.AWS_IAM_ROLE }}
+  AWS_IAM_ROLE: arn:aws:iam::016042496125:role/biolab-ci-github-dictyexpress
   AWS_REGION: us-east-1
   NODE_VERSION: 20
-  S3_BUCKET: genialis-share-ci-artifact-eu-west-1
+  S3_BUCKET: biolab-ci-artifact-us-east-1
   S3_BUCKET_PREFIX: dictyexpress-js
 
 jobs:
   build:
-    runs-on: public-docker-runner
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         node-version: [20]
