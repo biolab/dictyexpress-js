@@ -9,9 +9,6 @@ import {
     ControlLabel,
     ControlSelect,
     Canvas,
-    Legend,
-    LegendGradient,
-    LegendLabels,
     AxisIndicator,
     Tooltip,
     TooltipHeader,
@@ -21,6 +18,11 @@ import {
     TimeLegendItems,
     TimeLegendItem,
     TimeLegendDot,
+    ExpressionAlphaLegend,
+    AlphaLegendTitle,
+    AlphaGradientContainer,
+    AlphaGradientBar,
+    AlphaLabel,
 } from './umapPlot.styles';
 
 export interface UmapDataPoint {
@@ -183,7 +185,10 @@ const renderPoints = (
     colorCache: string[],
     getValue: (idx: number) => number,
     radius: number,
-    defaultColor: string
+    defaultColor: string,
+    alphaValues?: Float32Array | Record<string, number>,
+    alphaMax?: number,
+    expressionsActive: boolean = false
 ) => {
     const zero: ScatterPlotPoint[] = [];
     const nonZero: { p: ScatterPlotPoint; v: number }[] = [];
@@ -201,14 +206,35 @@ const renderPoints = (
 
     nonZero.sort((a, b) => a.v - b.v);
 
+    // Draw zero-colored points (always full opacity for background cells)
     ctx.fillStyle = ZERO_COLOR;
+    ctx.globalAlpha = 0.6;
     for (const p of zero) drawCircle(ctx, p.screenX, p.screenY, radius);
 
+    // Draw non-zero points with alpha based on expression if provided
     for (const { p } of nonZero) {
         const idx = parseInt(p.id);
         ctx.fillStyle = colorCache[idx] ?? defaultColor;
+        
+        // Set alpha based on expression values if provided
+        if (alphaValues && alphaMax && alphaMax > 0) {
+            let exprValue = 0;
+            if (alphaValues instanceof Float32Array) {
+                exprValue = alphaValues[idx] || 0;
+            } else {
+                exprValue = alphaValues[idx.toString()] || 0;
+            }
+            // Map expression to alpha range [0.1, 1.0] - minimum 0.1 to keep points visible
+            const normalizedExpr = Math.min(exprValue / alphaMax, 1.0);
+            ctx.globalAlpha = Math.max(0.1, normalizedExpr);
+        } else {
+            ctx.globalAlpha = expressionsActive ? 0.12 : 0.6;
+        }
+        
         drawCircle(ctx, p.screenX, p.screenY, radius);
     }
+    
+    ctx.globalAlpha = 1.0;
 };
 
 interface GeneExpressionData {
@@ -344,13 +370,13 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const hoverRafRef = useRef<number | null>(null);
         const devicePixelRatio = window.devicePixelRatio || 1;
         const [zoomDisplay, setZoomDisplay] = useState(100);
-        const [legendMax, setLegendMax] = useState(1);
-        const [colorModeOverride, setColorModeOverride] = useState<'time' | 'expression' | 'cell_type' | null>(null);
+        const [expressionMax, setExpressionMax] = useState(1);
+        const [colorModeOverride, setColorModeOverride] = useState<'time' | 'cell_type' | null>(null);
         const [timeLegendItems, setTimeLegendItems] = useState<Array<{ time: string; color: string }>>([]);
         const [cellTypeLegendItems, setCellTypeLegendItems] = useState<Array<{ cellType: string; color: string }>>([]);
         
-        // Derive color mode: manual override takes precedence, else auto-switch based on gene selection
-        const colorMode = colorModeOverride || (totalGenesSelected > 0 ? 'expression' : 'time');
+        // Color mode is either time or cell_type (no longer expression)
+        const colorMode = colorModeOverride || 'time';
 
         useEffect(() => {
             const container = containerRef.current;
@@ -477,12 +503,14 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 colorCacheRef.current = buildTimeColorCache(data);
             } else if (colorMode === 'cell_type') {
                 colorCacheRef.current = buildCellTypeColorCache(data);
-            } else {
+            }
+            
+            // Always compute expression max for alpha values when genes are selected
+            if (colorValues) {
                 const nCells = data.length;
                 const effectiveMax = computeLegendMax(colorValues, nCells);
                 legendMaxRef.current = effectiveMax;
-                setLegendMax(effectiveMax);
-                colorCacheRef.current = buildColorCache(colorValues, nCells, effectiveMax);
+                setExpressionMax(effectiveMax);
             }
         }, [colorValues, data, colorMode]);
 
@@ -508,15 +536,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             }
         }, [data, colorMode]);
 
-        // Auto-switch to expression when genes are first selected (only if no manual override)
-        useEffect(() => {
-            if (totalGenesSelected > 0 && !colorModeOverride) {
-                setColorModeOverride('expression');
-            } else if (totalGenesSelected === 0 && colorModeOverride === 'expression') {
-                // Auto-switch back to time when genes deselected (only if currently on expression)
-                setColorModeOverride(null);
-            }
-        }, [totalGenesSelected, colorModeOverride]);
 
         const render = useCallback(
             (points: ScatterPlotPoint[]) => {
@@ -530,11 +549,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 ctx.fillStyle = '#ffffff';
                 ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
-                const normalRadius = 1.0;
-                const normalOpacity = 0.6;
+                const normalRadius = 1.5;
                 const defaultColor = ZERO_COLOR;
-
-                ctx.globalAlpha = normalOpacity;
 
                 const getValue = (idx: number): number => {
                     if (colorValues instanceof Float32Array) {
@@ -545,13 +561,17 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     return 0;
                 };
 
+                // Pass expression values for alpha if genes are selected
                 renderPoints(
                     ctx,
                     points,
                     colorCacheRef.current,
                     getValue,
                     normalRadius,
-                    defaultColor
+                    defaultColor,
+                    colorValues,
+                    legendMaxRef.current,
+                    totalGenesSelected > 0
                 );
 
                 if (hoveredPointRef.current) {
@@ -571,7 +591,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
                 ctx.globalAlpha = 1.0;
             },
-            [dimensions.width, dimensions.height, setupCanvas, colorValues]
+            [dimensions.width, dimensions.height, setupCanvas, colorValues, totalGenesSelected]
         );
 
         const getMouseCoordinates = useCallback(
@@ -745,16 +765,15 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                             <ControlLabel>Color by:</ControlLabel>
                             <ControlSelect
                                 value={colorMode}
-                                onChange={(e) => setColorModeOverride(e.target.value as 'time' | 'expression' | 'cell_type')}
+                                onChange={(e) => setColorModeOverride(e.target.value as 'time' | 'cell_type')}
                             >
-                                <option value="expression" disabled={totalGenesSelected === 0}>Expression</option>
                                 <option value="time">Time</option>
                                 <option value="cell_type">Cell Type</option>
                             </ControlSelect>
                         </ControlGroup>
-                        {colorMode === 'expression' && (
+                        {totalGenesSelected > 0 && (
                             <ControlGroup>
-                                <ControlLabel>Transform:</ControlLabel>
+                                <ControlLabel>Expression Transform:</ControlLabel>
                                 <ControlSelect
                                     value={transformMode}
                                     onChange={(e) =>
@@ -767,9 +786,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                                 </ControlSelect>
                             </ControlGroup>
                         )}
-                        {colorMode === 'expression' && totalGenesSelected > 1 && (
+                        {totalGenesSelected > 1 && (
                             <ControlGroup>
-                                <ControlLabel>Aggregation:</ControlLabel>
+                                <ControlLabel>Expression Aggregation:</ControlLabel>
                                 <ControlSelect
                                     value={aggregationMode}
                                     onChange={(e) =>
@@ -804,14 +823,15 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     onWheel={handleWheel}
                 />
 
-                {colorMode === 'expression' && colorValues && (
-                    <Legend>
-                        <LegendGradient />
-                        <LegendLabels>
-                            <span>0</span>
-                            <span>{legendMax.toFixed(2)}</span>
-                        </LegendLabels>
-                    </Legend>
+                {totalGenesSelected > 0 && (
+                    <ExpressionAlphaLegend>
+                        <AlphaLegendTitle>Expression</AlphaLegendTitle>
+                        <AlphaGradientContainer>
+                            <AlphaLabel>0</AlphaLabel>
+                            <AlphaGradientBar />
+                            <AlphaLabel>{expressionMax.toFixed(2)}</AlphaLabel>
+                        </AlphaGradientContainer>
+                    </ExpressionAlphaLegend>
                 )}
 
                 {colorMode === 'time' && timeLegendItems.length > 0 && (
@@ -840,7 +860,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     </TimeLegend>
                 )}
 
-                <AxisIndicator>
+                <AxisIndicator style={{ bottom: totalGenesSelected > 0 ? '60px' : '0px' }}>
                     <svg width="52" height="52" viewBox="0 0 52 52">
                         <line x1="12" y1="40" x2="50" y2="40" stroke="#666" strokeWidth="1.5" />
                         <polygon points="46,36 52,40 46,44" fill="#666" />

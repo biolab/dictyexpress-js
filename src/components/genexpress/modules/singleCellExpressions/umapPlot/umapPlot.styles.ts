@@ -87,33 +87,9 @@ export const Canvas = styled.canvas<{ $isDragging: boolean; $isHovering: boolean
     box-sizing: border-box;
 `;
 
-export const Legend = styled.div`
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 6px 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    width: 160px;
-`;
-
-export const LegendGradient = styled.div`
-    height: 10px;
-    background: linear-gradient(to right, #e8e8e8 0%, #4a688d 80%, #375068 100%);
-    border-radius: 2px;
-`;
-
-export const LegendLabels = styled.div`
-    display: flex;
-    justify-content: space-between;
-    margin-top: 4px;
-    font-size: 12px;
-`;
-
 export const AxisIndicator = styled.div`
     position: absolute;
-    bottom: 10px;
+    bottom: 0px;
     left: 10px;
     pointer-events: none;
     color: #666;
@@ -180,5 +156,48 @@ export const TimeLegendDot = styled.div<{ $color: string }>`
     border-radius: 50%;
     background-color: ${({ $color }) => $color};
     flex-shrink: 0;
+`;
+
+export const ExpressionAlphaLegend = styled.div`
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+export const AlphaLegendTitle = styled.div`
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 3px;
+    font-weight: 500;
+`;
+
+export const AlphaGradientContainer = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+`;
+
+export const AlphaGradientBar = styled.div`
+    height: 8px;
+    width: 80px;
+    background: linear-gradient(to right, 
+        rgba(100, 100, 100, 0.1) 0%, 
+        rgba(100, 100, 100, 0.4) 40%,
+        rgba(100, 100, 100, 0.7) 70%,
+        rgba(100, 100, 100, 1.0) 100%
+    );
+    border-radius: 2px;
+    border: 1px solid #ddd;
+`;
+
+export const AlphaLabel = styled.span`
+    font-size: 10px;
+    color: #666;
+    min-width: 20px;
 `;
 
