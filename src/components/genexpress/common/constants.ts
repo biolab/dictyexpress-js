@@ -9,6 +9,7 @@ export enum ModulesKeys {
     differentialExpressions = 'differentialExpressions',
     gOEnrichment = 'gOEnrichment',
     clustering = 'clustering',
+    singleCellExpressions = 'singleCellExpressions',
 }
 
 export enum LayoutBreakpoint {

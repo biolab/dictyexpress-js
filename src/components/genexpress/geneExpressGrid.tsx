@@ -11,6 +11,7 @@ import DifferentialExpressions from './modules/differentialExpressions/different
 import GOEnrichment from './modules/gOEnrichment/gOEnrichment';
 import Clustering from './modules/clustering/clustering';
 import GenesExpressions from './modules/genesExpressions/genesExpressions';
+import SingleCellExpressions from './modules/singleCellExpressions/singleCellExpressions';
 import { DictyUrlQueryParameter, LayoutBreakpoint, ModulesKeys } from './common/constants';
 import { ResponsiveGridLayoutContainer } from './geneExpressGrid.styles';
 import useBrowserVisibility from './common/useBrowserVisibility';
@@ -175,6 +176,14 @@ const GeneExpressGrid = ({
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
                         >
                             <Clustering />
+                        </DictyModule>
+                    </div>
+                    <div key={ModulesKeys.singleCellExpressions}>
+                        <DictyModule
+                            title="Single-Cell Expressions"
+                            isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
+                        >
+                            <SingleCellExpressions />
                         </DictyModule>
                     </div>
                 </ResponsiveGridLayout>
