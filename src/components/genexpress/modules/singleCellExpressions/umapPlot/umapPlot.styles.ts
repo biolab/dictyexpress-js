@@ -6,7 +6,6 @@ export const ScatterPlotContainer = styled.div`
     height: 100%;
     min-height: 200px;
     min-width: 200px;
-    overflow: hidden;
     touch-action: none;
     overscroll-behavior: contain;
 `;
@@ -25,58 +24,19 @@ export const CappedWarning = styled.div`
     z-index: 1000;
 `;
 
-export const ControlsContainer = styled.div`
+export const ZoomHint = styled.div<{ $visible: boolean }>`
     position: absolute;
     top: 10px;
-    right: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    z-index: 1000;
-`;
-
-export const ControlButton = styled.button`
+    left: 10px;
+    background: rgba(255, 255, 255, 0.7);
+    color: rgb(0, 0, 0, 0.6);
+    border-radius: 5px;
     padding: 4px 8px;
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-
-    &:hover {
-        background: rgba(255, 255, 255, 1);
-    }
-`;
-
-export const ZoomDisplay = styled.div`
-    padding: 4px 8px;
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    text-align: center;
-`;
-
-export const ControlGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-`;
-
-export const ControlLabel = styled.label`
-    font-size: 10px;
-    font-weight: bold;
-    color: #666;
-    margin-bottom: 2px;
-`;
-
-export const ControlSelect = styled.select`
-    padding: 4px 6px;
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    min-width: 80px;
+    font-size: 11px;
+    pointer-events: none;
+    opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+    transition: opacity 0.15s ease;
+    z-index: 999;
 `;
 
 export const Canvas = styled.canvas<{ $isDragging: boolean; $isHovering: boolean }>`
@@ -95,57 +55,41 @@ export const AxisIndicator = styled.div`
     color: #666;
 `;
 
-export const Tooltip = styled.div`
+// Shared legend fieldset base styles
+const LegendBase = styled.fieldset`
     position: absolute;
-    background: rgba(0, 0, 0, 0.85);
-    color: white;
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    pointer-events: none;
-    z-index: 1001;
-    max-height: 400px;
-    overflow-y: auto;
-    min-width: 200px;
-    width: max-content;
-    max-width: 300px;
-`;
-
-export const TooltipHeader = styled.div`
-    font-weight: 600;
-    margin-bottom: 4px;
-`;
-
-export const TooltipGeneItem = styled.div`
-    margin-bottom: 2px;
-    font-size: 11px;
-`;
-
-export const TooltipGeneSymbol = styled.span`
-    font-weight: 500;
-`;
-
-export const TimeLegend = styled.div`
-    position: absolute;
-    bottom: 10px;
-    right: 10px;
+    right: 8px;
     background: rgba(255, 255, 255, 0.95);
-    padding: 8px 10px;
+    padding: 1px 5px 5px 5px;
     border-radius: 4px;
-    border: 1px solid #ccc;
+    border: 1px solid rgba(0, 0, 0, 0.23);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
+
+// Shared legend title styles
+export const LegendTitle = styled.legend`
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.6);
+    font-weight: 400;
+`;
+
+export const TimeLegend = styled(LegendBase)`
+    bottom: 5px;
+    padding: 0px 10px 5px 10px;
+`;
+
+export const TimeLegendTitle = LegendTitle;
 
 export const TimeLegendItems = styled.div`
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0px;
 `;
 
 export const TimeLegendItem = styled.div`
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     font-size: 12px;
     color: #555;
 `;
@@ -158,39 +102,27 @@ export const TimeLegendDot = styled.div<{ $color: string }>`
     flex-shrink: 0;
 `;
 
-export const ExpressionAlphaLegend = styled.div`
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    background: rgba(255, 255, 255, 0.95);
-    padding: 6px 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+export const ExpressionAlphaLegend = styled(LegendBase)`
+    top: 5px;
 `;
 
-export const AlphaLegendTitle = styled.div`
-    font-size: 10px;
-    color: #555;
-    margin-bottom: 3px;
-    font-weight: 500;
+export const AlphaLegendTitle = styled(LegendTitle)`
+    margin-left: 5px;
 `;
 
 export const AlphaGradientContainer = styled.div`
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
 `;
 
-export const AlphaGradientBar = styled.div`
+export const AlphaGradientBar = styled.div<{ $isExpression?: boolean }>`
     height: 8px;
     width: 80px;
-    background: linear-gradient(to right, 
-        rgba(100, 100, 100, 0.1) 0%, 
-        rgba(100, 100, 100, 0.4) 40%,
-        rgba(100, 100, 100, 0.7) 70%,
-        rgba(100, 100, 100, 1.0) 100%
-    );
+    background: ${({ $isExpression }) =>
+        $isExpression
+            ? 'linear-gradient(to right, #e8e8e8 0%, #4a688d 80%, #375068 100%)'
+            : 'linear-gradient(to right, rgba(100, 100, 100, 0.1) 0%, rgba(100, 100, 100, 0.4) 40%, rgba(100, 100, 100, 0.7) 70%, rgba(100, 100, 100, 1.0) 100%)'};
     border-radius: 2px;
     border: 1px solid #ddd;
 `;
@@ -199,5 +131,6 @@ export const AlphaLabel = styled.span`
     font-size: 10px;
     color: #666;
     min-width: 20px;
+    text-align: center;
 `;
 

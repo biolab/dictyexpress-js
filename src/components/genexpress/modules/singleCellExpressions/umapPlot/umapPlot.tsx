@@ -1,20 +1,13 @@
 import { ReactElement, useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
+import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
     ScatterPlotContainer,
     CappedWarning,
-    ControlsContainer,
-    ControlButton,
-    ZoomDisplay,
-    ControlGroup,
-    ControlLabel,
-    ControlSelect,
+    ZoomHint,
     Canvas,
     AxisIndicator,
-    Tooltip,
-    TooltipHeader,
-    TooltipGeneItem,
-    TooltipGeneSymbol,
     TimeLegend,
+    TimeLegendTitle,
     TimeLegendItems,
     TimeLegendItem,
     TimeLegendDot,
@@ -52,6 +45,11 @@ interface ScatterPlotPoint extends UmapDataPoint {
 
 type ColorValues = Record<string, number> | Float32Array | undefined;
 
+type TooltipPointer = {
+    clientX: number;
+    clientY: number;
+};
+
 // Helpers for color and drawing
 const ZERO_COLOR = '#e8e8e8';
 const TIME_COLORS = [
@@ -61,6 +59,8 @@ const TIME_COLORS = [
 const CELL_TYPE_COLORS = [
     '#e45a31', '#2f7db1',
 ];
+
+const MAX_TOOLTIP_GENES = 5;
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -92,21 +92,26 @@ const computeLegendMax = (
     values: ColorValues,
     nCells: number
 ): number => {
-    let max = 0;
+    const allValues: number[] = [];
 
     if (values instanceof Float32Array) {
         for (let i = 0; i < values.length; i++) {
             const v = values[i];
-            if (isFinite(v) && v > max) max = v;
+            if (isFinite(v) && v > 0) allValues.push(v);
         }
     } else if (values) {
         for (const key in values) {
             const v = values[key];
-            if (typeof v === 'number' && isFinite(v) && v > max) max = v;
+            if (typeof v === 'number' && isFinite(v) && v > 0) allValues.push(v);
         }
     }
 
-    return max > 0 ? max : 1;
+    if (allValues.length === 0) return 1;
+
+    // Use 99th percentile to avoid outliers making everything too faint
+    allValues.sort((a, b) => a - b);
+    const p99Index = Math.floor(allValues.length * 0.99);
+    return allValues[p99Index];
 };
 
 const buildColorCache = (
@@ -188,7 +193,8 @@ const renderPoints = (
     defaultColor: string,
     alphaValues?: Float32Array | Record<string, number>,
     alphaMax?: number,
-    expressionsActive: boolean = false
+    expressionsActive: boolean = false,
+    useAlpha: boolean = true
 ) => {
     const zero: ScatterPlotPoint[] = [];
     const nonZero: { p: ScatterPlotPoint; v: number }[] = [];
@@ -216,19 +222,20 @@ const renderPoints = (
         const idx = parseInt(p.id);
         ctx.fillStyle = colorCache[idx] ?? defaultColor;
         
-        // Set alpha based on expression values if provided
-        if (alphaValues && alphaMax && alphaMax > 0) {
+        // Set alpha based on expression values if provided and useAlpha is enabled
+        if (useAlpha && alphaValues && alphaMax && alphaMax > 0) {
             let exprValue = 0;
             if (alphaValues instanceof Float32Array) {
                 exprValue = alphaValues[idx] || 0;
             } else {
                 exprValue = alphaValues[idx.toString()] || 0;
             }
-            // Map expression to alpha range [0.1, 1.0] - minimum 0.1 to keep points visible
+            // Map expression to alpha range [0.01, 1.0] - minimum 0.01 to keep points visible
             const normalizedExpr = Math.min(exprValue / alphaMax, 1.0);
-            ctx.globalAlpha = Math.max(0.1, normalizedExpr);
+            ctx.globalAlpha = Math.max(0.01, normalizedExpr);
         } else {
-            ctx.globalAlpha = expressionsActive ? 0.12 : 0.6;
+            // When opacity toggle is off or no expression data, use standard opacity
+            ctx.globalAlpha = 0.6;
         }
         
         drawCircle(ctx, p.screenX, p.screenY, radius);
@@ -237,91 +244,20 @@ const renderPoints = (
     ctx.globalAlpha = 1.0;
 };
 
-interface GeneExpressionData {
+export interface GeneExpressionData {
     geneName: string;
     geneSymbol: string;
     expression: Float32Array;
 }
 
-const renderTooltip = (
-    hoveredPoint: ScatterPlotPoint,
-    geneExpressionData: GeneExpressionData[],
-    colorValues: ColorValues,
-    dimensions: { width: number; height: number }
-): ReactElement => {
-    const cellId = parseInt(hoveredPoint.id);
-    const totalGenes = geneExpressionData.length;
-    const showTop = 5;
-
-    let displayGenes: Array<{ name: string; symbol: string; value: number }> = [];
-    let hasMore = false;
-
-    if (totalGenes > 0) {
-        // Separate expressed and non-expressed genes
-        const expressed: Array<{ name: string; symbol: string; value: number }> = [];
-        const zeros: Array<{ name: string; symbol: string; value: number }> = [];
-
-        for (const geneData of geneExpressionData) {
-            const value = geneData.expression[cellId] || 0;
-            const gene = { name: geneData.geneName, symbol: geneData.geneSymbol, value };
-            if (value > 0) expressed.push(gene);
-            else zeros.push(gene);
-        }
-
-        // Sort: expressed by value desc, zeros by symbol alphabetically
-        expressed.sort((a, b) => b.value - a.value);
-        zeros.sort((a, b) => a.symbol.localeCompare(b.symbol));
-
-        // Take top 5: expressed first, then fill with zeros
-        displayGenes = [...expressed, ...zeros].slice(0, showTop);
-        hasMore = totalGenes > showTop;
-    }
-
-    // Check if tooltip would overflow on the right side (approximate width check)
-    const estimatedTooltipWidth = 250;
-    const isNearRightEdge = hoveredPoint.screenX + estimatedTooltipWidth + 10 > dimensions.width;
-
-    return (
-        <Tooltip
-            style={{
-                left: hoveredPoint.screenX + 10,
-                top: hoveredPoint.screenY - 30,
-                transform: isNearRightEdge ? 'translateX(calc(-100% - 20px))' : 'none',
-            }}
-        >
-            <TooltipHeader>Cell: {hoveredPoint.tag}</TooltipHeader>
-            <div style={{ fontSize: '11px', marginBottom: '4px', color: '#ccc' }}>
-                Time: {hoveredPoint.time ?? 'N/A'} {hoveredPoint.cell_type ? `| Type: ${hoveredPoint.cell_type}` : ''}
-            </div>
-            {displayGenes.length > 0 ? (
-                <div>
-                    {displayGenes.map((gene, idx) => (
-                        <TooltipGeneItem key={`${gene.symbol}-${idx}`}>
-                            <TooltipGeneSymbol>{gene.symbol}</TooltipGeneSymbol>: {gene.value.toFixed(3)}
-                        </TooltipGeneItem>
-                    ))}
-                    {hasMore && <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>...</div>}
-                </div>
-            ) : colorValues ? (
-                <div>
-                    Aggregated Expression:{' '}
-                    {colorValues instanceof Float32Array
-                        ? colorValues[cellId]?.toFixed(3) ?? '0.000'
-                        : colorValues[hoveredPoint.id]?.toFixed(3) ?? '0.000'}
-                </div>
-            ) : null}
-        </Tooltip>
-    );
-};
-
 interface UmapPlotProps {
     data: UmapDataPoint[];
     colorValues?: ColorValues;
+    colorMode?: 'time' | 'cell_type' | 'expression';
     transformMode?: 'linear' | 'log2' | 'log1p';
     aggregationMode?: 'average' | 'sum' | 'min' | 'max';
-    onTransformModeChange?: (mode: 'linear' | 'log2' | 'log1p') => void;
-    onAggregationModeChange?: (mode: 'average' | 'sum' | 'min' | 'max') => void;
-    showControls?: boolean;
+    showLegend?: boolean;
+    useAlpha?: boolean;
     geneExpressionData?: GeneExpressionData[];
     isCapped?: boolean;
     maxGenesToShow?: number;
@@ -334,11 +270,11 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         {
             data,
             colorValues,
+            colorMode: colorModeProp = 'time',
             transformMode = 'log2',
             aggregationMode = 'average',
-            onTransformModeChange,
-            onAggregationModeChange,
-            showControls = true,
+            showLegend = true,
+            useAlpha = true,
             geneExpressionData = [],
             isCapped = false,
             maxGenesToShow = 500,
@@ -353,9 +289,104 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const colorCacheRef = useRef<string[]>([]);
         const legendMaxRef = useRef<number>(1);
         const hoveredPointRef = useRef<ScatterPlotPoint | null>(null);
+        const tooltipHandlerRef = useRef<VegaTooltipHandler | null>(null);
+        const pointerEventRef = useRef<TooltipPointer | null>(null);
+
+        const hideTooltip = useCallback(() => {
+            if (!tooltipHandlerRef.current) return;
+            const pointer = pointerEventRef.current ?? { clientX: 0, clientY: 0 };
+            tooltipHandlerRef.current.call(
+                null,
+                pointer as unknown as MouseEvent,
+                { datum: null } as any,
+                null
+            );
+            pointerEventRef.current = null;
+        }, []);
+
+        useEffect(() => {
+            tooltipHandlerRef.current = new VegaTooltipHandler({
+                offsetX: 10,
+                offsetY: 10,
+                theme: 'light',
+                formatTooltip: (value: any) => {
+                    const keys = Object.keys(value);
+                    const hasGenes = keys.some(k => !['Cell', 'Time', 'Type', 'Expression'].includes(k));
+                    return '<table>' + keys.map((k, i) => {
+                        const needsSep = i > 0 && (keys[i-1] === 'Cell' || (keys[i-1] === 'Type' && hasGenes));
+                        const sepStyle = needsSep ? ' style="border-top:1px solid rgba(0,0,0,0.12);padding-top:4px"' : '';
+                        return `<tr><td class="key"${sepStyle}>${k}</td><td class="value"${sepStyle}>${value[k]}</td></tr>`;
+                    }).join('') + '</table>';
+                }
+            });
+            return () => hideTooltip();
+        }, [hideTooltip]);
+
+        const showTooltip = useCallback(
+            (point: ScatterPlotPoint, pointer: TooltipPointer | null) => {
+                if (!tooltipHandlerRef.current || !pointer) return;
+
+                const tooltipValue: Record<string, string> = {
+                    Cell: point.tag,
+                    Time: point.time ?? 'N/A',
+                };
+
+                if (point.cell_type) {
+                    tooltipValue.Type = point.cell_type;
+                } else {
+                    tooltipValue.Type = ' ';
+                }
+
+                const cellId = Number.parseInt(point.id, 10);
+                const totalGenes = geneExpressionData.length;
+
+                if (totalGenes > 0) {
+                    
+                    const expressed: Array<{ symbol: string; value: number }> = [];
+                    const zeros: Array<{ symbol: string; value: number }> = [];
+
+                    for (const geneData of geneExpressionData) {
+                        const value = geneData.expression[cellId] || 0;
+                        const entry = { symbol: geneData.geneSymbol, value };
+                        if (value > 0) {
+                            expressed.push(entry);
+                        } else {
+                            zeros.push(entry);
+                        }
+                    }
+
+                    expressed.sort((a, b) => b.value - a.value);
+                    zeros.sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+                    const displayGenes = [...expressed, ...zeros].slice(0, MAX_TOOLTIP_GENES);
+                    displayGenes.forEach((gene) => {
+                        tooltipValue[gene.symbol] = gene.value.toFixed(3);
+                    });
+
+                    if (totalGenes > MAX_TOOLTIP_GENES) {
+                        tooltipValue[`+ ${totalGenes - MAX_TOOLTIP_GENES} more`] = '';
+                    }
+                } else if (colorValues) {
+                    let aggregated = 0;
+                    if (colorValues instanceof Float32Array) {
+                        aggregated = colorValues[cellId] ?? 0;
+                    } else if (colorValues) {
+                        aggregated = Number(colorValues[point.id] ?? 0);
+                    }
+                    tooltipValue.Expression = aggregated.toFixed(3);
+                }
+
+                tooltipHandlerRef.current.call(
+                    null,
+                    pointer as unknown as MouseEvent,
+                    { datum: tooltipValue } as any,
+                    tooltipValue
+                );
+            },
+            [geneExpressionData, colorValues]
+        );
 
         const [isHovering, setIsHovering] = useState(false);
-        const [hoveredPoint, setHoveredPoint] = useState<ScatterPlotPoint | null>(null);
         const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
         const [isDragging, setIsDragging] = useState(false);
         const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -368,15 +399,16 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const wheelAccumRef = useRef(0);
         const wheelRafRef = useRef<number | null>(null);
         const hoverRafRef = useRef<number | null>(null);
+        const zoomHintTimeoutRef = useRef<number | null>(null);
         const devicePixelRatio = window.devicePixelRatio || 1;
         const [zoomDisplay, setZoomDisplay] = useState(100);
         const [expressionMax, setExpressionMax] = useState(1);
-        const [colorModeOverride, setColorModeOverride] = useState<'time' | 'cell_type' | null>(null);
         const [timeLegendItems, setTimeLegendItems] = useState<Array<{ time: string; color: string }>>([]);
         const [cellTypeLegendItems, setCellTypeLegendItems] = useState<Array<{ cellType: string; color: string }>>([]);
+        const [showZoomHint, setShowZoomHint] = useState(false);
         
-        // Color mode is either time or cell_type (no longer expression)
-        const colorMode = colorModeOverride || 'time';
+        // Use the colorMode from props
+        const colorMode = colorModeProp;
 
         useEffect(() => {
             const container = containerRef.current;
@@ -503,10 +535,16 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 colorCacheRef.current = buildTimeColorCache(data);
             } else if (colorMode === 'cell_type') {
                 colorCacheRef.current = buildCellTypeColorCache(data);
+            } else if (colorMode === 'expression') {
+                const nCells = data.length;
+                const effectiveMax = computeLegendMax(colorValues, nCells);
+                legendMaxRef.current = effectiveMax;
+                setExpressionMax(effectiveMax);
+                colorCacheRef.current = buildColorCache(colorValues, nCells, effectiveMax);
             }
             
             // Always compute expression max for alpha values when genes are selected
-            if (colorValues) {
+            if (colorValues && colorMode !== 'expression') {
                 const nCells = data.length;
                 const effectiveMax = computeLegendMax(colorValues, nCells);
                 legendMaxRef.current = effectiveMax;
@@ -571,7 +609,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     defaultColor,
                     colorValues,
                     legendMaxRef.current,
-                    totalGenesSelected > 0
+                    totalGenesSelected > 0,
+                    useAlpha
                 );
 
                 if (hoveredPointRef.current) {
@@ -591,7 +630,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
                 ctx.globalAlpha = 1.0;
             },
-            [dimensions.width, dimensions.height, setupCanvas, colorValues, totalGenesSelected]
+            [dimensions.width, dimensions.height, setupCanvas, colorValues, totalGenesSelected, useAlpha]
         );
 
         const getMouseCoordinates = useCallback(
@@ -613,23 +652,26 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 setDragStart(coords);
                 setLastTransform(transformRef.current);
                 hoveredPointRef.current = null;
-                setHoveredPoint(null);
                 setIsHovering(false);
+                pointerEventRef.current = null;
+                hideTooltip();
                 document.body.style.userSelect = 'none';
             },
-            [getMouseCoordinates]
+            [getMouseCoordinates, hideTooltip]
         );
 
         const handleMouseMove = useCallback(
             (event: React.MouseEvent<HTMLCanvasElement>) => {
                 const coords = getMouseCoordinates(event);
+                pointerEventRef.current = { clientX: event.clientX, clientY: event.clientY };
 
                 if (isDragging) {
                     event.preventDefault();
                     event.stopPropagation();
                     hoveredPointRef.current = null;
-                    setHoveredPoint(null);
                     setIsHovering(false);
+                    hideTooltip();
+                    pointerEventRef.current = null;
                     const deltaX = coords.x - dragStart.x;
                     const deltaY = coords.y - dragStart.y;
                     transformRef.current = {
@@ -664,25 +706,45 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                         }
 
                         // Only re-render if hovered point changed
-                        if (hoveredPointRef.current?.id !== closest?.id) {
-                            hoveredPointRef.current = closest;
-                            setHoveredPoint(closest);
-                            setIsHovering(closest != null);
-                            render(pts);
+                        if (closest) {
+                            if (hoveredPointRef.current?.id !== closest.id) {
+                                hoveredPointRef.current = closest;
+                                setIsHovering(true);
+                                render(pts);
+                            }
+                            showTooltip(closest, pointerEventRef.current);
+                        } else {
+                            if (hoveredPointRef.current) {
+                                hoveredPointRef.current = null;
+                                setIsHovering(false);
+                                render(pts);
+                            }
+                            hideTooltip();
                         }
                     });
                 }
             },
-            [isDragging, dragStart, lastTransform, getMouseCoordinates, calculateScreenCoordinates, data, render]
+            [
+                isDragging,
+                dragStart,
+                lastTransform,
+                getMouseCoordinates,
+                calculateScreenCoordinates,
+                data,
+                render,
+                hideTooltip,
+                showTooltip,
+            ]
         );
 
         const handleMouseUp = useCallback(() => {
             setIsDragging(false);
             hoveredPointRef.current = null;
-            setHoveredPoint(null);
             setIsHovering(false);
+            pointerEventRef.current = null;
+            hideTooltip();
             document.body.style.userSelect = '';
-        }, []);
+        }, [hideTooltip]);
 
         const handleDoubleClick = useCallback(() => {
             // Reset zoom and pan
@@ -697,11 +759,12 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 hoverRafRef.current = null;
             }
             hoveredPointRef.current = null;
-            setHoveredPoint(null);
             setIsHovering(false);
             setIsDragging(false);
+            pointerEventRef.current = null;
+            hideTooltip();
             document.body.style.userSelect = '';
-        }, []);
+        }, [hideTooltip]);
 
         const handleWheel = useCallback(
             (event: React.WheelEvent<HTMLDivElement> | React.WheelEvent<HTMLCanvasElement>) => {
@@ -735,6 +798,16 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                         };
                         const screenPoints = calculateScreenCoordinates(data);
                         render(screenPoints);
+                        
+                        // Show zoom hint and hide after short delay
+                        setShowZoomHint(true);
+                        if (zoomHintTimeoutRef.current) {
+                            window.clearTimeout(zoomHintTimeoutRef.current);
+                        }
+                        zoomHintTimeoutRef.current = window.setTimeout(() => {
+                            setShowZoomHint(false);
+                            zoomHintTimeoutRef.current = null;
+                        }, 300);
                     }
                 });
             },
@@ -742,10 +815,21 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         );
 
         useEffect(() => {
+            if (data.length === 0) return;
+            // Skip render if genes are selected but we have no expression data yet (during strain switch)
+            if (totalGenesSelected > 0 && !colorValues) return;
             const screenPoints = calculateScreenCoordinates(data);
             render(screenPoints);
             // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [data, colorValues, colorMode, dimensions.width, dimensions.height]);
+        }, [data, colorValues, colorMode, dimensions.width, dimensions.height, useAlpha]);
+
+        useEffect(() => {
+            return () => {
+                if (zoomHintTimeoutRef.current) {
+                    window.clearTimeout(zoomHintTimeoutRef.current);
+                }
+            };
+        }, []);
 
         return (
             <ScatterPlotContainer ref={containerRef} onWheel={handleWheel}>
@@ -755,57 +839,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     </CappedWarning>
                 )}
 
-                {showControls && (
-                    <ControlsContainer>
-                        <ControlButton onClick={handleDoubleClick} title="Reset zoom and pan (or double-click)">
-                            Reset View
-                        </ControlButton>
-                        <ZoomDisplay>Zoom: {zoomDisplay}%</ZoomDisplay>
-                        <ControlGroup>
-                            <ControlLabel>Color by:</ControlLabel>
-                            <ControlSelect
-                                value={colorMode}
-                                onChange={(e) => setColorModeOverride(e.target.value as 'time' | 'cell_type')}
-                            >
-                                <option value="time">Time</option>
-                                <option value="cell_type">Cell Type</option>
-                            </ControlSelect>
-                        </ControlGroup>
-                        {totalGenesSelected > 0 && (
-                            <ControlGroup>
-                                <ControlLabel>Expression Transform:</ControlLabel>
-                                <ControlSelect
-                                    value={transformMode}
-                                    onChange={(e) =>
-                                        onTransformModeChange?.(e.target.value as 'linear' | 'log2' | 'log1p')
-                                    }
-                                >
-                                    <option value="linear">Linear</option>
-                                    <option value="log2">Log2</option>
-                                    <option value="log1p">Log1p</option>
-                                </ControlSelect>
-                            </ControlGroup>
-                        )}
-                        {totalGenesSelected > 1 && (
-                            <ControlGroup>
-                                <ControlLabel>Expression Aggregation:</ControlLabel>
-                                <ControlSelect
-                                    value={aggregationMode}
-                                    onChange={(e) =>
-                                        onAggregationModeChange?.(
-                                            e.target.value as 'average' | 'sum' | 'min' | 'max'
-                                        )
-                                    }
-                                >
-                                    <option value="average">Average</option>
-                                    <option value="sum">Sum</option>
-                                    <option value="min">Min</option>
-                                    <option value="max">Max</option>
-                                </ControlSelect>
-                            </ControlGroup>
-                        )}
-                    </ControlsContainer>
-                )}
+                <ZoomHint $visible={showZoomHint}>
+                    Double-click to reset zoom
+                </ZoomHint>
 
                 <Canvas
                     ref={canvasRef}
@@ -823,19 +859,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     onWheel={handleWheel}
                 />
 
-                {totalGenesSelected > 0 && (
+                {showLegend && (colorMode === 'expression' || (totalGenesSelected > 0 && useAlpha)) && (
                     <ExpressionAlphaLegend>
                         <AlphaLegendTitle>Expression</AlphaLegendTitle>
                         <AlphaGradientContainer>
                             <AlphaLabel>0</AlphaLabel>
-                            <AlphaGradientBar />
+                            <AlphaGradientBar $isExpression={colorMode === 'expression'} />
                             <AlphaLabel>{expressionMax.toFixed(2)}</AlphaLabel>
                         </AlphaGradientContainer>
                     </ExpressionAlphaLegend>
                 )}
 
-                {colorMode === 'time' && timeLegendItems.length > 0 && (
+                {showLegend && colorMode === 'time' && timeLegendItems.length > 0 && (
                     <TimeLegend>
+                        <TimeLegendTitle>Time</TimeLegendTitle>
                         <TimeLegendItems>
                             {timeLegendItems.map((item) => (
                                 <TimeLegendItem key={item.time}>
@@ -847,8 +884,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     </TimeLegend>
                 )}
 
-                {colorMode === 'cell_type' && cellTypeLegendItems.length > 0 && (
+                {showLegend && colorMode === 'cell_type' && cellTypeLegendItems.length > 0 && (
                     <TimeLegend>
+                        <TimeLegendTitle>Cell Type</TimeLegendTitle>
                         <TimeLegendItems>
                             {cellTypeLegendItems.map((item) => (
                                 <TimeLegendItem key={item.cellType}>
@@ -860,7 +898,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     </TimeLegend>
                 )}
 
-                <AxisIndicator style={{ bottom: totalGenesSelected > 0 ? '60px' : '0px' }}>
+                <AxisIndicator>
                     <svg width="52" height="52" viewBox="0 0 52 52">
                         <line x1="12" y1="40" x2="50" y2="40" stroke="#666" strokeWidth="1.5" />
                         <polygon points="46,36 52,40 46,44" fill="#666" />
@@ -888,8 +926,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                         </text>
                     </svg>
                 </AxisIndicator>
-
-                {hoveredPoint && renderTooltip(hoveredPoint, geneExpressionData, colorValues, dimensions)}
             </ScatterPlotContainer>
         );
     }

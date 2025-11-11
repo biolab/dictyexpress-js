@@ -32,6 +32,7 @@ import {
     getIsAddingToBasket,
     getIsFetchingGenesMappings,
 } from 'redux/stores/timeSeries';
+import { getIsFetchingSingleCellExpressions } from 'redux/stores/singleCellExpressions';
 import { RootState } from 'redux/rootReducer';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -52,6 +53,7 @@ const mapStateToProps = (state: RootState) => {
         isLoggingOut: getIsLoggingOut(state.authentication),
         isFetchingGOEnrichmentJson: getIsFetchingGOEnrichmentJson(state.gOEnrichment),
         gOEnrichmentStatus: getGOEnrichmentStatus(state.gOEnrichment),
+        isFetchingSingleCellExpressions: getIsFetchingSingleCellExpressions(state.singleCellExpressions),
     };
 };
 
@@ -73,6 +75,7 @@ const GeneExpressGrid = ({
     isLoggingOut,
     isFetchingGOEnrichmentJson,
     gOEnrichmentStatus,
+    isFetchingSingleCellExpressions,
     connectedLayoutsChanged,
     connectedFetchAndSelectPredefinedGenes,
 }: PropsFromRedux): ReactElement => {
@@ -180,8 +183,8 @@ const GeneExpressGrid = ({
                     </div>
                     <div key={ModulesKeys.singleCellExpressions}>
                         <DictyModule
-                            title="Single-Cell Expressions"
-                            isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
+                            title="Single Cell Expression"
+                            isLoading={isFetchingSingleCellExpressions}
                         >
                             <SingleCellExpressions />
                         </DictyModule>

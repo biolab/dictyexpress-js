@@ -71,8 +71,8 @@ const getBreakpointLayouts = (breakpoint: LayoutBreakpoint): Layout[] => {
             breakpoint,
             availableSpaceInCols,
             {
-                large: 6,
-                mid: 5,
+                large: 4,
+                mid: 3,
                 small: defaultBreakpointCols.small,
             }[breakpoint],
         ),
@@ -81,10 +81,23 @@ const getBreakpointLayouts = (breakpoint: LayoutBreakpoint): Layout[] => {
             breakpoint,
             availableSpaceInCols,
             {
-                large: 6,
-                mid: 4,
+                large: 4,
+                mid: 3,
                 small: defaultBreakpointCols.small,
             }[breakpoint],
+        ),
+        generateModuleLayout(
+            ModulesKeys.singleCellExpressions,
+            breakpoint,
+            availableSpaceInCols,
+            {
+                large: 4,
+                mid: 3,
+                small: defaultBreakpointCols.small,
+            }[breakpoint],
+            3,
+            defaultHeightInCols,
+            3,
         ),
         generateModuleLayout(
             ModulesKeys.differentialExpressions,
@@ -115,19 +128,6 @@ const getBreakpointLayouts = (breakpoint: LayoutBreakpoint): Layout[] => {
                 mid: 3,
                 small: defaultBreakpointCols.small,
             }[breakpoint],
-        ),
-        generateModuleLayout(
-            ModulesKeys.singleCellExpressions,
-            breakpoint,
-            availableSpaceInCols,
-            {
-                large: 6,
-                mid: 5,
-                small: defaultBreakpointCols.small,
-            }[breakpoint],
-            3,
-            defaultHeightInCols,
-            3,
         ),
     ];
 };

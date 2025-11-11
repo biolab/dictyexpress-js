@@ -1,8 +1,10 @@
 import { ReactElement, useMemo, useRef, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
+import { MenuItem, SelectChangeEvent, styled, FormControlLabel, Switch } from '@mui/material';
 import { RootState } from 'redux/rootReducer';
 import { getSelectedGenes } from 'redux/stores/genes';
-import UmapPlot, { UmapDataPoint, UmapPlotHandle } from './umapPlot/umapPlot';
+import { singleCellExpressionsFetchStarted, singleCellExpressionsFetchEnded } from 'redux/stores/singleCellExpressions';
+import UmapPlot, { UmapDataPoint, UmapPlotHandle, GeneExpressionData } from './umapPlot/umapPlot';
 import {
     loadUMAPCoordinates,
     loadGeneNames,
@@ -20,14 +22,18 @@ import {
 } from './dataLoader';
 import { 
     SingleCellExpressionsContainer, 
-    SingleCellExpressionsHeader, 
     ErrorMessage, 
     LoadingMessage,
-    StrainSelectorContainer,
-    StrainLabel,
-    StrainSelect,
-    StrainText,
+    ControlsRow,
+    LegendToggleContainer,
+    InfoRow,
 } from './singleCellExpressions.styles';
+import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
+
+const StyledDictySelect = styled(DictySelect)`
+    min-width: 80px;
+    max-width: 90px;
+`;
 
 const MAX_GENES_TO_SHOW = 500;
 const DEFAULT_STRAIN = 'AX4';
@@ -38,12 +44,15 @@ const mapStateToProps = (state: RootState) => ({
     selectedGenes: getSelectedGenes(state.genes),
 });
 
-const connector = connect(mapStateToProps);
+const connector = connect(mapStateToProps, {
+    connectedSingleCellExpressionsFetchStarted: singleCellExpressionsFetchStarted,
+    connectedSingleCellExpressionsFetchEnded: singleCellExpressionsFetchEnded,
+});
 
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type CombinedProps = SingleCellExpressionsProps & PropsFromRedux;
 
-const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement => {
+const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFetchStarted, connectedSingleCellExpressionsFetchEnded }: CombinedProps): ReactElement => {
     const chartRef = useRef<UmapPlotHandle>(null);
 
     // State for strain selection
@@ -60,18 +69,19 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
         null
     );
     const [colorValues, setColorValues] = useState<Float32Array | undefined>(undefined);
-    const [geneExpressionData, setGeneExpressionData] = useState<
-        Array<{ geneName: string; geneSymbol: string; expression: Float32Array }>
-    >([]);
+    const [geneExpressionData, setGeneExpressionData] = useState<GeneExpressionData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // State for controls
+    const [colorMode, setColorMode] = useState<'time' | 'cell_type' | 'expression'>('time');
     const [transformMode, setTransformMode] = useState<'linear' | 'log2' | 'log1p'>('log2');
     const [aggregationMode, setAggregationMode] = useState<'average' | 'sum' | 'min' | 'max'>(
         'average'
     );
+    const [showLegend, setShowLegend] = useState(true);
+    const [useAlpha, setUseAlpha] = useState(true);
 
     /**
      * Load available strains on mount
@@ -96,6 +106,7 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
             try {
                 setLoading(true);
                 setError(null);
+                connectedSingleCellExpressionsFetchStarted();
                 
                 // Reset data when switching strains
                 setColorValues(undefined);
@@ -136,15 +147,17 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
                 setDatasetInfo(info);
                 setLoading(false);
                 setIsInitialLoad(false);
+                connectedSingleCellExpressionsFetchEnded();
             } catch (err) {
                 setError('Failed to load single-cell data. Please check the data files.');
                 setLoading(false);
                 setIsInitialLoad(false);
+                connectedSingleCellExpressionsFetchEnded();
             }
         };
 
         loadInitialData();
-    }, [selectedStrain]);
+    }, [selectedStrain, connectedSingleCellExpressionsFetchStarted, connectedSingleCellExpressionsFetchEnded]);
 
     /**
      * Load and aggregate gene expression data whenever selected genes change.
@@ -223,10 +236,19 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
     }, [selectedGenes, geneNames, geneSymbols, datasetInfo, aggregationMode, transformMode]);
 
     /**
+     * Auto-switch from expression mode when no genes selected
+     */
+    useEffect(() => {
+        if (selectedGenes.length === 0 && colorMode === 'expression') {
+            setColorMode('time');
+        }
+    }, [selectedGenes.length, colorMode]);
+
+    /**
      * Handle strain selection change
      */
-    const handleStrainChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-        const newStrain = event.target.value;
+    const handleStrainChange = (event: SelectChangeEvent<unknown>) => {
+        const newStrain = event.target.value as string;
         setStrain(newStrain);
         setSelectedStrain(newStrain);
     };
@@ -236,6 +258,15 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
     const cellCountDisplay = useMemo(() => {
         return umapCoordinates.length > 0 ? `${umapCoordinates.length} cells` : '';
     }, [umapCoordinates.length]);
+
+    // Calculate number of visible toggles
+    const visibleToggleCount = useMemo(() => {
+        let count = 1; // Legend toggle is always visible
+        if (selectedGenes.length > 0 && colorMode !== 'expression') {
+            count++; // Expression toggle is visible
+        }
+        return count;
+    }, [selectedGenes.length, colorMode]);
 
     // Show error state
     if (error) {
@@ -258,47 +289,107 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
     // Main view - always show content with loading bar in header
     return (
         <SingleCellExpressionsContainer>
-            <SingleCellExpressionsHeader>
-                <div>
-                    {cellCountDisplay}
-                    {selectedGenes.length > 0 && (
-                        <span>
-                            {' '}
-                            • {isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length} gene
-                            {(isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length) !== 1
-                                ? 's'
-                                : ''}{' '}
-                            selected
-                        </span>
-                    )}
-                </div>
-                <StrainSelectorContainer>
-                    <StrainLabel>Strain:</StrainLabel>
-                    {availableStrains.length > 1 ? (
-                        <StrainSelect
-                            id="strain-selector"
-                            value={selectedStrain}
-                            onChange={handleStrainChange}
+            <ControlsRow $toggleCount={visibleToggleCount}>
+                {availableStrains.length > 1 ? (
+                    <StyledDictySelect
+                        label="Strain"
+                        value={selectedStrain}
+                        handleOnChange={handleStrainChange}
+                    >
+                        {availableStrains.map((strain) => (
+                            <MenuItem key={strain} value={strain}>
+                                {strain}
+                            </MenuItem>
+                        ))}
+                    </StyledDictySelect>
+                ) : (
+                    <StyledDictySelect
+                        label="Strain"
+                        value={selectedStrain}
+                        handleOnChange={handleStrainChange}
+                        disabled
+                    >
+                        <MenuItem value={selectedStrain}>{selectedStrain}</MenuItem>
+                    </StyledDictySelect>
+                )}
+                
+                    <StyledDictySelect
+                        label="Color by"
+                        value={colorMode}
+                        handleOnChange={(e: SelectChangeEvent<unknown>) => setColorMode(e.target.value as 'time' | 'cell_type' | 'expression')}
+                    >
+                        <MenuItem value="time">Time</MenuItem>
+                        <MenuItem value="cell_type">Cell Type</MenuItem>
+                        <MenuItem value="expression" disabled={selectedGenes.length === 0}>Expression</MenuItem>
+                    </StyledDictySelect>
+
+                {selectedGenes.length > 0 && (colorMode === 'expression' || useAlpha) && (
+                    <>
+                        <StyledDictySelect
+                            label="Transform"
+                            value={transformMode}
+                            handleOnChange={(e: SelectChangeEvent<unknown>) => setTransformMode(e.target.value as 'linear' | 'log2' | 'log1p')}
                         >
-                            {availableStrains.map((strain) => (
-                                <option key={strain} value={strain}>
-                                    {strain}
-                                </option>
-                            ))}
-                        </StrainSelect>
-                    ) : (
-                        <StrainText>{selectedStrain}</StrainText>
+                            <MenuItem value="linear">Linear</MenuItem>
+                            <MenuItem value="log2">Log2</MenuItem>
+                            <MenuItem value="log1p">Log1p</MenuItem>
+                        </StyledDictySelect>
+
+                        {selectedGenes.length > 1 && (
+                            <StyledDictySelect
+                                label="Aggregation"
+                                value={aggregationMode}
+                                handleOnChange={(e: SelectChangeEvent<unknown>) => setAggregationMode(e.target.value as 'average' | 'sum' | 'min' | 'max')}
+                            >
+                                <MenuItem value="average">Average</MenuItem>
+                                <MenuItem value="sum">Sum</MenuItem>
+                                <MenuItem value="min">Min</MenuItem>
+                                <MenuItem value="max">Max</MenuItem>
+                            </StyledDictySelect>
+                        )}
+                    </>
+                )}
+
+                <LegendToggleContainer>
+                    {selectedGenes.length > 0 && colorMode !== 'expression' && (
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={useAlpha}
+                                    onChange={(event): void => {
+                                        setUseAlpha(event.target.checked);
+                                    }}
+                                    size="small"
+                                />
+                            }
+                            label="Expression"
+                            labelPlacement="top"
+                        />
                     )}
-                </StrainSelectorContainer>
-            </SingleCellExpressionsHeader>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={showLegend}
+                                onChange={(event): void => {
+                                    setShowLegend(event.target.checked);
+                                }}
+                                size="small"
+                            />
+                        }
+                        label="Legend"
+                        labelPlacement="top"
+                    />
+                </LegendToggleContainer>
+            </ControlsRow>
+
             <UmapPlot
                 data={umapCoordinates}
                 colorValues={colorValues}
+                colorMode={colorMode}
                 transformMode={transformMode}
                 aggregationMode={aggregationMode}
-                onTransformModeChange={setTransformMode}
-                onAggregationModeChange={setAggregationMode}
-                showControls={true}
+                showLegend={showLegend}
+                useAlpha={useAlpha}
                 geneExpressionData={geneExpressionData}
                 isCapped={isCapped}
                 maxGenesToShow={MAX_GENES_TO_SHOW}
@@ -306,6 +397,16 @@ const SingleCellExpressions = ({ selectedGenes }: CombinedProps): ReactElement =
                 fixedBounds={referenceBounds}
                 ref={chartRef}
             />
+
+            <InfoRow>
+                <span>{cellCountDisplay}</span>
+                {selectedGenes.length > 0 && (
+                    <span>
+                        • {isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length} gene
+                        {(isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length) !== 1 ? 's' : ''} selected
+                    </span>
+                )}
+            </InfoRow>
         </SingleCellExpressionsContainer>
     );
 };
