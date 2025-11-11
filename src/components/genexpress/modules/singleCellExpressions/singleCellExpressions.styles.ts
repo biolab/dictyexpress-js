@@ -13,7 +13,8 @@ export const ControlsRow = styled.div<{ $toggleCount?: number }>`
     flex-wrap: wrap;
     gap: 10px;
     align-items: flex-end;
-    padding-right: ${({ $toggleCount = 1 }) => $toggleCount * 80}px; /* Dynamic space for legend toggles */
+    padding-right: ${({ $toggleCount = 1 }) =>
+        $toggleCount * 80}px; /* Dynamic space for legend toggles */
 `;
 
 export const LegendToggleContainer = styled.div`
@@ -50,4 +51,3 @@ export const ErrorMessage = styled.div`
     height: 100%;
     color: ${({ theme }) => theme.palette.error.main};
 `;
-

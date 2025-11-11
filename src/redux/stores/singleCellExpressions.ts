@@ -8,8 +8,10 @@ const singleCellExpressionsReducer = combineReducers({
 });
 
 // Export actions.
-export const { started: singleCellExpressionsFetchStarted, ended: singleCellExpressionsFetchEnded } =
-    isFetchingSingleCellExpressionsSlice.actions;
+export const {
+    started: singleCellExpressionsFetchStarted,
+    ended: singleCellExpressionsFetchEnded,
+} = isFetchingSingleCellExpressionsSlice.actions;
 
 export type SingleCellExpressionsState = ReturnType<typeof singleCellExpressionsReducer>;
 
@@ -18,4 +20,3 @@ export default singleCellExpressionsReducer;
 // Selectors (exposes the store to containers).
 export const getIsFetchingSingleCellExpressions = (state: SingleCellExpressionsState): boolean =>
     state.isFetchingSingleCellExpressions;
-

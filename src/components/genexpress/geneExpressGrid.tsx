@@ -53,7 +53,9 @@ const mapStateToProps = (state: RootState) => {
         isLoggingOut: getIsLoggingOut(state.authentication),
         isFetchingGOEnrichmentJson: getIsFetchingGOEnrichmentJson(state.gOEnrichment),
         gOEnrichmentStatus: getGOEnrichmentStatus(state.gOEnrichment),
-        isFetchingSingleCellExpressions: getIsFetchingSingleCellExpressions(state.singleCellExpressions),
+        isFetchingSingleCellExpressions: getIsFetchingSingleCellExpressions(
+            state.singleCellExpressions,
+        ),
     };
 };
 

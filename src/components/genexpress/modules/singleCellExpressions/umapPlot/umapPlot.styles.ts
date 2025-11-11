@@ -133,4 +133,3 @@ export const AlphaLabel = styled.span`
     min-width: 20px;
     text-align: center;
 `;
-

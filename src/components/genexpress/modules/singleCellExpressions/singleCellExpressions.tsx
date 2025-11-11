@@ -1,9 +1,6 @@
 import { ReactElement, useMemo, useRef, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import { MenuItem, SelectChangeEvent, styled, FormControlLabel, Switch } from '@mui/material';
-import { RootState } from 'redux/rootReducer';
-import { getSelectedGenes } from 'redux/stores/genes';
-import { singleCellExpressionsFetchStarted, singleCellExpressionsFetchEnded } from 'redux/stores/singleCellExpressions';
 import UmapPlot, { UmapDataPoint, UmapPlotHandle, GeneExpressionData } from './umapPlot/umapPlot';
 import {
     loadUMAPCoordinates,
@@ -20,14 +17,20 @@ import {
     listAvailableStrains,
     getCurrentStrain,
 } from './dataLoader';
-import { 
-    SingleCellExpressionsContainer, 
-    ErrorMessage, 
+import {
+    SingleCellExpressionsContainer,
+    ErrorMessage,
     LoadingMessage,
     ControlsRow,
     LegendToggleContainer,
     InfoRow,
 } from './singleCellExpressions.styles';
+import { RootState } from 'redux/rootReducer';
+import { getSelectedGenes } from 'redux/stores/genes';
+import {
+    singleCellExpressionsFetchStarted,
+    singleCellExpressionsFetchEnded,
+} from 'redux/stores/singleCellExpressions';
 import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
 
 const StyledDictySelect = styled(DictySelect)`
@@ -52,25 +55,38 @@ const connector = connect(mapStateToProps, {
 type PropsFromRedux = ConnectedProps<typeof connector>;
 type CombinedProps = SingleCellExpressionsProps & PropsFromRedux;
 
-const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFetchStarted, connectedSingleCellExpressionsFetchEnded }: CombinedProps): ReactElement => {
+const SingleCellExpressions = ({
+    selectedGenes,
+    connectedSingleCellExpressionsFetchStarted,
+    connectedSingleCellExpressionsFetchEnded,
+}: CombinedProps): ReactElement => {
     const chartRef = useRef<UmapPlotHandle>(null);
 
     // State for strain selection
     const [availableStrains, setAvailableStrains] = useState<string[]>([]);
     const [selectedStrain, setSelectedStrain] = useState<string>(getCurrentStrain());
-    const [referenceBounds, setReferenceBounds] = useState<{ minX: number; maxX: number; minY: number; maxY: number } | null>(null);
+    const [referenceBounds, setReferenceBounds] = useState<{
+        minX: number;
+        maxX: number;
+        minY: number;
+        maxY: number;
+    } | null>(null);
 
     // State for data
     const [umapCoordinates, setUmapCoordinates] = useState<UmapDataPoint[]>([]);
     const [geneNames, setGeneNames] = useState<string[]>([]); // Gene IDs (DDB_G...)
     const [geneSymbols, setGeneSymbols] = useState<string[]>([]); // Gene symbols (pspA, pspB...)
-    const [cellTags, setCellTags] = useState<string[]>([]); // Cell tags from obs.index
-    const [datasetInfo, setDatasetInfo] = useState<{ strain: string; n_genes: number; n_cells: number } | null>(
-        null
-    );
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_cellTags, _setCellTags] = useState<string[]>([]); // Cell tags from obs.index
+    const [datasetInfo, setDatasetInfo] = useState<{
+        strain: string;
+        n_genes: number;
+        n_cells: number;
+    } | null>(null);
     const [colorValues, setColorValues] = useState<Float32Array | undefined>(undefined);
     const [geneExpressionData, setGeneExpressionData] = useState<GeneExpressionData[]>([]);
-    const [loading, setLoading] = useState(true);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [_loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -78,7 +94,7 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
     const [colorMode, setColorMode] = useState<'time' | 'cell_type' | 'expression'>('time');
     const [transformMode, setTransformMode] = useState<'linear' | 'log2' | 'log1p'>('log2');
     const [aggregationMode, setAggregationMode] = useState<'average' | 'sum' | 'min' | 'max'>(
-        'average'
+        'average',
     );
     const [showLegend, setShowLegend] = useState(true);
     const [useAlpha, setUseAlpha] = useState(true);
@@ -91,11 +107,12 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
             try {
                 const strains = await listAvailableStrains();
                 setAvailableStrains(strains);
-            } catch (err) {
-                console.error('Failed to load available strains:', err);
+            } catch {
+                // eslint-disable-next-line no-console
+                console.error('Failed to load available strains');
             }
         };
-        loadStrains();
+        void loadStrains();
     }, []);
 
     /**
@@ -107,7 +124,7 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                 setLoading(true);
                 setError(null);
                 connectedSingleCellExpressionsFetchStarted();
-                
+
                 // Reset data when switching strains
                 setColorValues(undefined);
                 setGeneExpressionData([]);
@@ -133,22 +150,22 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
 
                 // Store reference bounds from default strain
                 if (selectedStrain === DEFAULT_STRAIN && !referenceBounds && points.length > 0) {
-                    const minX = Math.min(...points.map(p => p.x));
-                    const maxX = Math.max(...points.map(p => p.x));
-                    const minY = Math.min(...points.map(p => p.y));
-                    const maxY = Math.max(...points.map(p => p.y));
+                    const minX = Math.min(...points.map((p) => p.x));
+                    const maxX = Math.max(...points.map((p) => p.x));
+                    const minY = Math.min(...points.map((p) => p.y));
+                    const maxY = Math.max(...points.map((p) => p.y));
                     setReferenceBounds({ minX, maxX, minY, maxY });
                 }
 
                 setUmapCoordinates(points);
                 setGeneNames(names);
                 setGeneSymbols(symbols);
-                setCellTags(tags);
+                _setCellTags(tags);
                 setDatasetInfo(info);
                 setLoading(false);
                 setIsInitialLoad(false);
                 connectedSingleCellExpressionsFetchEnded();
-            } catch (err) {
+            } catch {
                 setError('Failed to load single-cell data. Please check the data files.');
                 setLoading(false);
                 setIsInitialLoad(false);
@@ -156,8 +173,13 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
             }
         };
 
-        loadInitialData();
-    }, [selectedStrain, connectedSingleCellExpressionsFetchStarted, connectedSingleCellExpressionsFetchEnded]);
+        void loadInitialData();
+    }, [
+        selectedStrain,
+        connectedSingleCellExpressionsFetchStarted,
+        connectedSingleCellExpressionsFetchEnded,
+        referenceBounds,
+    ]);
 
     /**
      * Load and aggregate gene expression data whenever selected genes change.
@@ -166,7 +188,7 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
         if (!datasetInfo) {
             return;
         }
-        
+
         if (selectedGenes.length === 0) {
             setColorValues(undefined);
             setGeneExpressionData([]);
@@ -176,24 +198,24 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
         const loadGeneExpression = async () => {
             try {
                 const limitedGenes = selectedGenes.slice(0, MAX_GENES_TO_SHOW);
-                
+
                 const geneIndices: number[] = [];
-                
+
                 for (const gene of limitedGenes) {
                     let idx = -1;
-                    
+
                     // Try matching by gene symbol (case-insensitive) first.
                     if (gene.name) {
                         idx = geneSymbols.findIndex(
-                            (symbol) => symbol.toLowerCase() === gene.name.toLowerCase()
+                            (symbol) => symbol.toLowerCase() === gene.name.toLowerCase(),
                         );
                     }
-                    
+
                     // Try matching by feature ID if symbol match failed.
                     if (idx === -1 && gene.feature_id) {
                         idx = geneNames.findIndex((id) => id === gene.feature_id);
                     }
-                    
+
                     if (idx !== -1) {
                         geneIndices.push(idx);
                     }
@@ -203,10 +225,14 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                     setColorValues(undefined);
                     return;
                 }
-                
+
                 const expressionData = await loadMultipleGenesExpression(geneIndices);
 
-                const transformedGeneData: Array<{ geneName: string; geneSymbol: string; expression: Float32Array }> = [];
+                const transformedGeneData: Array<{
+                    geneName: string;
+                    geneSymbol: string;
+                    expression: Float32Array;
+                }> = [];
                 for (let i = 0; i < geneIndices.length; i++) {
                     const geneIdx = geneIndices[i];
                     const expression = expressionData.get(geneIdx);
@@ -219,20 +245,20 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                         });
                     }
                 }
-                
+
                 const expressions = Array.from(expressionData.values());
                 const aggregated = aggregateGeneExpression(expressions, aggregationMode);
                 const transformedAggregated = transformExpression(aggregated, transformMode);
 
                 setColorValues(transformedAggregated);
                 setGeneExpressionData(transformedGeneData);
-            } catch (err) {
+            } catch {
                 // Expression loading failed, but don't show error to user
                 setColorValues(undefined);
             }
         };
 
-        loadGeneExpression();
+        void loadGeneExpression();
     }, [selectedGenes, geneNames, geneSymbols, datasetInfo, aggregationMode, transformMode]);
 
     /**
@@ -312,23 +338,29 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                         <MenuItem value={selectedStrain}>{selectedStrain}</MenuItem>
                     </StyledDictySelect>
                 )}
-                
-                    <StyledDictySelect
-                        label="Color by"
-                        value={colorMode}
-                        handleOnChange={(e: SelectChangeEvent<unknown>) => setColorMode(e.target.value as 'time' | 'cell_type' | 'expression')}
-                    >
-                        <MenuItem value="time">Time</MenuItem>
-                        <MenuItem value="cell_type">Cell Type</MenuItem>
-                        <MenuItem value="expression" disabled={selectedGenes.length === 0}>Expression</MenuItem>
-                    </StyledDictySelect>
+
+                <StyledDictySelect
+                    label="Color by"
+                    value={colorMode}
+                    handleOnChange={(e: SelectChangeEvent<unknown>) =>
+                        setColorMode(e.target.value as 'time' | 'cell_type' | 'expression')
+                    }
+                >
+                    <MenuItem value="time">Time</MenuItem>
+                    <MenuItem value="cell_type">Cell Type</MenuItem>
+                    <MenuItem value="expression" disabled={selectedGenes.length === 0}>
+                        Expression
+                    </MenuItem>
+                </StyledDictySelect>
 
                 {selectedGenes.length > 0 && (colorMode === 'expression' || useAlpha) && (
                     <>
                         <StyledDictySelect
                             label="Transform"
                             value={transformMode}
-                            handleOnChange={(e: SelectChangeEvent<unknown>) => setTransformMode(e.target.value as 'linear' | 'log2' | 'log1p')}
+                            handleOnChange={(e: SelectChangeEvent<unknown>) =>
+                                setTransformMode(e.target.value as 'linear' | 'log2' | 'log1p')
+                            }
                         >
                             <MenuItem value="linear">Linear</MenuItem>
                             <MenuItem value="log2">Log2</MenuItem>
@@ -339,7 +371,11 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                             <StyledDictySelect
                                 label="Aggregation"
                                 value={aggregationMode}
-                                handleOnChange={(e: SelectChangeEvent<unknown>) => setAggregationMode(e.target.value as 'average' | 'sum' | 'min' | 'max')}
+                                handleOnChange={(e: SelectChangeEvent<unknown>) =>
+                                    setAggregationMode(
+                                        e.target.value as 'average' | 'sum' | 'min' | 'max',
+                                    )
+                                }
                             >
                                 <MenuItem value="average">Average</MenuItem>
                                 <MenuItem value="sum">Sum</MenuItem>
@@ -403,7 +439,10 @@ const SingleCellExpressions = ({ selectedGenes, connectedSingleCellExpressionsFe
                 {selectedGenes.length > 0 && (
                     <span>
                         • {isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length} gene
-                        {(isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length) !== 1 ? 's' : ''} selected
+                        {(isCapped ? MAX_GENES_TO_SHOW : selectedGenes.length) !== 1
+                            ? 's'
+                            : ''}{' '}
+                        selected
                     </span>
                 )}
             </InfoRow>

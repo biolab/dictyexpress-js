@@ -1,4 +1,12 @@
-import { ReactElement, useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
+import {
+    ReactElement,
+    useRef,
+    useEffect,
+    useCallback,
+    useState,
+    forwardRef,
+    useImperativeHandle,
+} from 'react';
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
     ScatterPlotContainer,
@@ -52,13 +60,9 @@ type TooltipPointer = {
 
 // Helpers for color and drawing
 const ZERO_COLOR = '#e8e8e8';
-const TIME_COLORS = [
-    '#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c7eb3',
-];
+const TIME_COLORS = ['#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c7eb3'];
 
-const CELL_TYPE_COLORS = [
-    '#e45a31', '#2f7db1',
-];
+const CELL_TYPE_COLORS = ['#e45a31', '#2f7db1'];
 
 const MAX_TOOLTIP_GENES = 5;
 
@@ -88,10 +92,7 @@ const hexToRgb = (hex: string) => {
 };
 
 // Color cache builders
-const computeLegendMax = (
-    values: ColorValues,
-    nCells: number
-): number => {
+const computeLegendMax = (values: ColorValues, _nCells: number): number => {
     const allValues: number[] = [];
 
     if (values instanceof Float32Array) {
@@ -114,11 +115,7 @@ const computeLegendMax = (
     return allValues[p99Index];
 };
 
-const buildColorCache = (
-    values: ColorValues,
-    nCells: number,
-    legendMax: number
-): string[] => {
+const buildColorCache = (values: ColorValues, nCells: number, legendMax: number): string[] => {
     const cache: string[] = new Array(nCells);
 
     if (values instanceof Float32Array) {
@@ -144,7 +141,9 @@ const buildTimeColorCache = (data: UmapDataPoint[]): string[] => {
     const cache: string[] = new Array(data.length);
 
     // Get unique time values and sort them, filter out nulls
-    const uniqueTimes = Array.from(new Set(data.map(d => d.time).filter(t => t != null))).sort();
+    const uniqueTimes = Array.from(
+        new Set(data.map((d) => d.time).filter((t) => t != null)),
+    ).sort();
     const timeToColor = new Map<string, string>();
 
     uniqueTimes.forEach((time, idx) => {
@@ -153,7 +152,7 @@ const buildTimeColorCache = (data: UmapDataPoint[]): string[] => {
 
     for (let i = 0; i < data.length; i++) {
         const time = data[i].time;
-        cache[i] = (time != null) ? (timeToColor.get(time) || ZERO_COLOR) : ZERO_COLOR;
+        cache[i] = time != null ? timeToColor.get(time) || ZERO_COLOR : ZERO_COLOR;
     }
 
     return cache;
@@ -163,7 +162,9 @@ const buildCellTypeColorCache = (data: UmapDataPoint[]): string[] => {
     const cache: string[] = new Array(data.length);
 
     // Get unique cell types and sort them, filter out nulls
-    const uniqueCellTypes = Array.from(new Set(data.map(d => d.cell_type).filter(t => t != null))).sort();
+    const uniqueCellTypes = Array.from(
+        new Set(data.map((d) => d.cell_type).filter((t) => t != null)),
+    ).sort();
     const cellTypeToColor = new Map<string, string>();
 
     uniqueCellTypes.forEach((cellType, idx) => {
@@ -172,7 +173,7 @@ const buildCellTypeColorCache = (data: UmapDataPoint[]): string[] => {
 
     for (let i = 0; i < data.length; i++) {
         const cellType = data[i].cell_type;
-        cache[i] = (cellType != null) ? (cellTypeToColor.get(cellType) || ZERO_COLOR) : ZERO_COLOR;
+        cache[i] = cellType != null ? cellTypeToColor.get(cellType) || ZERO_COLOR : ZERO_COLOR;
     }
 
     return cache;
@@ -193,8 +194,8 @@ const renderPoints = (
     defaultColor: string,
     alphaValues?: Float32Array | Record<string, number>,
     alphaMax?: number,
-    expressionsActive: boolean = false,
-    useAlpha: boolean = true
+    _expressionsActive: boolean = false,
+    useAlpha: boolean = true,
 ) => {
     const zero: ScatterPlotPoint[] = [];
     const nonZero: { p: ScatterPlotPoint; v: number }[] = [];
@@ -221,7 +222,7 @@ const renderPoints = (
     for (const { p } of nonZero) {
         const idx = parseInt(p.id);
         ctx.fillStyle = colorCache[idx] ?? defaultColor;
-        
+
         // Set alpha based on expression values if provided and useAlpha is enabled
         if (useAlpha && alphaValues && alphaMax && alphaMax > 0) {
             let exprValue = 0;
@@ -237,10 +238,10 @@ const renderPoints = (
             // When opacity toggle is off or no expression data, use standard opacity
             ctx.globalAlpha = 0.6;
         }
-        
+
         drawCircle(ctx, p.screenX, p.screenY, radius);
     }
-    
+
     ctx.globalAlpha = 1.0;
 };
 
@@ -271,8 +272,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             data,
             colorValues,
             colorMode: colorModeProp = 'time',
-            transformMode = 'log2',
-            aggregationMode = 'average',
+            transformMode: _transformMode = 'log2',
+            aggregationMode: _aggregationMode = 'average',
             showLegend = true,
             useAlpha = true,
             geneExpressionData = [],
@@ -281,7 +282,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             totalGenesSelected = 0,
             fixedBounds = null,
         },
-        ref
+        ref,
     ): ReactElement => {
         const canvasRef = useRef<HTMLCanvasElement>(null);
         const containerRef = useRef<HTMLDivElement>(null);
@@ -298,8 +299,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             tooltipHandlerRef.current.call(
                 null,
                 pointer as unknown as MouseEvent,
-                { datum: null } as any,
-                null
+                { datum: null } as unknown as { datum: null },
+                null,
             );
             pointerEventRef.current = null;
         }, []);
@@ -309,15 +310,28 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 offsetX: 10,
                 offsetY: 10,
                 theme: 'light',
-                formatTooltip: (value: any) => {
+                formatTooltip: (value: Record<string, string>) => {
                     const keys = Object.keys(value);
-                    const hasGenes = keys.some(k => !['Cell', 'Time', 'Type', 'Expression'].includes(k));
-                    return '<table>' + keys.map((k, i) => {
-                        const needsSep = i > 0 && (keys[i-1] === 'Cell' || (keys[i-1] === 'Type' && hasGenes));
-                        const sepStyle = needsSep ? ' style="border-top:1px solid rgba(0,0,0,0.12);padding-top:4px"' : '';
-                        return `<tr><td class="key"${sepStyle}>${k}</td><td class="value"${sepStyle}>${value[k]}</td></tr>`;
-                    }).join('') + '</table>';
-                }
+                    const hasGenes = keys.some(
+                        (k) => !['Cell', 'Time', 'Type', 'Expression'].includes(k),
+                    );
+                    return (
+                        '<table>' +
+                        keys
+                            .map((k, i) => {
+                                const needsSep =
+                                    i > 0 &&
+                                    (keys[i - 1] === 'Cell' ||
+                                        (keys[i - 1] === 'Type' && hasGenes));
+                                const sepStyle = needsSep
+                                    ? ' style="border-top:1px solid rgba(0,0,0,0.12);padding-top:4px"'
+                                    : '';
+                                return `<tr><td class="key"${sepStyle}>${k}</td><td class="value"${sepStyle}>${value[k]}</td></tr>`;
+                            })
+                            .join('') +
+                        '</table>'
+                    );
+                },
             });
             return () => hideTooltip();
         }, [hideTooltip]);
@@ -341,7 +355,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const totalGenes = geneExpressionData.length;
 
                 if (totalGenes > 0) {
-                    
                     const expressed: Array<{ symbol: string; value: number }> = [];
                     const zeros: Array<{ symbol: string; value: number }> = [];
 
@@ -379,11 +392,11 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 tooltipHandlerRef.current.call(
                     null,
                     pointer as unknown as MouseEvent,
-                    { datum: tooltipValue } as any,
-                    tooltipValue
+                    { datum: tooltipValue } as unknown as { datum: Record<string, string> },
+                    tooltipValue,
                 );
             },
-            [geneExpressionData, colorValues]
+            [geneExpressionData, colorValues],
         );
 
         const [isHovering, setIsHovering] = useState(false);
@@ -401,12 +414,17 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const hoverRafRef = useRef<number | null>(null);
         const zoomHintTimeoutRef = useRef<number | null>(null);
         const devicePixelRatio = window.devicePixelRatio || 1;
-        const [zoomDisplay, setZoomDisplay] = useState(100);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const [_zoomDisplay, setZoomDisplay] = useState(100);
         const [expressionMax, setExpressionMax] = useState(1);
-        const [timeLegendItems, setTimeLegendItems] = useState<Array<{ time: string; color: string }>>([]);
-        const [cellTypeLegendItems, setCellTypeLegendItems] = useState<Array<{ cellType: string; color: string }>>([]);
+        const [timeLegendItems, setTimeLegendItems] = useState<
+            Array<{ time: string; color: string }>
+        >([]);
+        const [cellTypeLegendItems, setCellTypeLegendItems] = useState<
+            Array<{ cellType: string; color: string }>
+        >([]);
         const [showZoomHint, setShowZoomHint] = useState(false);
-        
+
         // Use the colorMode from props
         const colorMode = colorModeProp;
 
@@ -442,7 +460,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             });
 
             return () =>
-                container.removeEventListener('wheel', handleNativeWheel, { capture: true } as any);
+                container.removeEventListener('wheel', handleNativeWheel, {
+                    capture: true,
+                } as AddEventListenerOptions);
         }, []);
 
         useImperativeHandle(ref, () => ({
@@ -475,7 +495,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
             },
-            [dimensions.width, dimensions.height, devicePixelRatio]
+            [dimensions.width, dimensions.height, devicePixelRatio],
         );
 
         const calculateScreenCoordinates = useCallback(
@@ -527,7 +547,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 setZoomDisplay(Math.round(transformRef.current.scale * 100));
                 return mapped;
             },
-            [dimensions.width, dimensions.height, fixedBounds]
+            [dimensions.width, dimensions.height, fixedBounds],
         );
 
         useEffect(() => {
@@ -542,7 +562,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 setExpressionMax(effectiveMax);
                 colorCacheRef.current = buildColorCache(colorValues, nCells, effectiveMax);
             }
-            
+
             // Always compute expression max for alpha values when genes are selected
             if (colorValues && colorMode !== 'expression') {
                 const nCells = data.length;
@@ -554,7 +574,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
         useEffect(() => {
             if (colorMode === 'time' && data.length > 0) {
-                const uniqueTimes = Array.from(new Set(data.map(d => d.time).filter(t => t != null))).sort();
+                const uniqueTimes = Array.from(
+                    new Set(data.map((d) => d.time).filter((t) => t != null)),
+                ).sort();
                 const items = uniqueTimes.map((time, idx) => ({
                     time,
                     color: TIME_COLORS[idx % TIME_COLORS.length],
@@ -565,7 +587,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
         useEffect(() => {
             if (colorMode === 'cell_type' && data.length > 0) {
-                const uniqueCellTypes = Array.from(new Set(data.map(d => d.cell_type).filter(t => t != null))).sort();
+                const uniqueCellTypes = Array.from(
+                    new Set(data.map((d) => d.cell_type).filter((t) => t != null)),
+                ).sort();
                 const items = uniqueCellTypes.map((cellType, idx) => ({
                     cellType,
                     color: CELL_TYPE_COLORS[idx % CELL_TYPE_COLORS.length],
@@ -573,7 +597,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 setCellTypeLegendItems(items);
             }
         }, [data, colorMode]);
-
 
         const render = useCallback(
             (points: ScatterPlotPoint[]) => {
@@ -610,7 +633,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     colorValues,
                     legendMaxRef.current,
                     totalGenesSelected > 0,
-                    useAlpha
+                    useAlpha,
                 );
 
                 if (hoveredPointRef.current) {
@@ -623,14 +646,21 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                         hoveredPointRef.current.screenY,
                         normalRadius + 2,
                         0,
-                        2 * Math.PI
+                        2 * Math.PI,
                     );
                     ctx.stroke();
                 }
 
                 ctx.globalAlpha = 1.0;
             },
-            [dimensions.width, dimensions.height, setupCanvas, colorValues, totalGenesSelected, useAlpha]
+            [
+                dimensions.width,
+                dimensions.height,
+                setupCanvas,
+                colorValues,
+                totalGenesSelected,
+                useAlpha,
+            ],
         );
 
         const getMouseCoordinates = useCallback(
@@ -640,7 +670,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const rect = canvas.getBoundingClientRect();
                 return { x: event.clientX - rect.left, y: event.clientY - rect.top };
             },
-            []
+            [],
         );
 
         const handleMouseDown = useCallback(
@@ -657,7 +687,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 hideTooltip();
                 document.body.style.userSelect = 'none';
             },
-            [getMouseCoordinates, hideTooltip]
+            [getMouseCoordinates, hideTooltip],
         );
 
         const handleMouseMove = useCallback(
@@ -734,7 +764,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 render,
                 hideTooltip,
                 showTooltip,
-            ]
+            ],
         );
 
         const handleMouseUp = useCallback(() => {
@@ -768,7 +798,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
         const handleWheel = useCallback(
             (event: React.WheelEvent<HTMLDivElement> | React.WheelEvent<HTMLCanvasElement>) => {
-                const coords = getMouseCoordinates(event as any);
+                const coords = getMouseCoordinates(event as React.WheelEvent<HTMLCanvasElement>);
                 wheelAccumRef.current += event.deltaY;
 
                 if (wheelRafRef.current != null) return;
@@ -798,7 +828,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                         };
                         const screenPoints = calculateScreenCoordinates(data);
                         render(screenPoints);
-                        
+
                         // Show zoom hint and hide after short delay
                         setShowZoomHint(true);
                         if (zoomHintTimeoutRef.current) {
@@ -811,7 +841,14 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     }
                 });
             },
-            [getMouseCoordinates, calculateScreenCoordinates, data, render, dimensions.width, dimensions.height]
+            [
+                getMouseCoordinates,
+                calculateScreenCoordinates,
+                data,
+                render,
+                dimensions.width,
+                dimensions.height,
+            ],
         );
 
         useEffect(() => {
@@ -839,9 +876,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     </CappedWarning>
                 )}
 
-                <ZoomHint $visible={showZoomHint}>
-                    Double-click to reset zoom
-                </ZoomHint>
+                <ZoomHint $visible={showZoomHint}>Double-click to reset zoom</ZoomHint>
 
                 <Canvas
                     ref={canvasRef}
@@ -859,16 +894,17 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     onWheel={handleWheel}
                 />
 
-                {showLegend && (colorMode === 'expression' || (totalGenesSelected > 0 && useAlpha)) && (
-                    <ExpressionAlphaLegend>
-                        <AlphaLegendTitle>Expression</AlphaLegendTitle>
-                        <AlphaGradientContainer>
-                            <AlphaLabel>0</AlphaLabel>
-                            <AlphaGradientBar $isExpression={colorMode === 'expression'} />
-                            <AlphaLabel>{expressionMax.toFixed(2)}</AlphaLabel>
-                        </AlphaGradientContainer>
-                    </ExpressionAlphaLegend>
-                )}
+                {showLegend &&
+                    (colorMode === 'expression' || (totalGenesSelected > 0 && useAlpha)) && (
+                        <ExpressionAlphaLegend>
+                            <AlphaLegendTitle>Expression</AlphaLegendTitle>
+                            <AlphaGradientContainer>
+                                <AlphaLabel>0</AlphaLabel>
+                                <AlphaGradientBar $isExpression={colorMode === 'expression'} />
+                                <AlphaLabel>{expressionMax.toFixed(2)}</AlphaLabel>
+                            </AlphaGradientContainer>
+                        </ExpressionAlphaLegend>
+                    )}
 
                 {showLegend && colorMode === 'time' && timeLegendItems.length > 0 && (
                     <TimeLegend>
@@ -928,10 +964,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 </AxisIndicator>
             </ScatterPlotContainer>
         );
-    }
+    },
 );
 
 UmapPlot.displayName = 'UmapPlot';
 
 export default UmapPlot;
-
