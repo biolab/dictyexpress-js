@@ -10,7 +10,6 @@ import {
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
     ScatterPlotContainer,
-    CappedWarning,
     ZoomHint,
     Canvas,
     AxisIndicator,
@@ -260,8 +259,6 @@ interface UmapPlotProps {
     showLegend?: boolean;
     useAlpha?: boolean;
     geneExpressionData?: GeneExpressionData[];
-    isCapped?: boolean;
-    maxGenesToShow?: number;
     totalGenesSelected?: number;
     fixedBounds?: { minX: number; maxX: number; minY: number; maxY: number } | null;
 }
@@ -277,8 +274,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             showLegend = true,
             useAlpha = true,
             geneExpressionData = [],
-            isCapped = false,
-            maxGenesToShow = 500,
             totalGenesSelected = 0,
             fixedBounds = null,
         },
@@ -414,8 +409,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const hoverRafRef = useRef<number | null>(null);
         const zoomHintTimeoutRef = useRef<number | null>(null);
         const devicePixelRatio = window.devicePixelRatio || 1;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const [_zoomDisplay, setZoomDisplay] = useState(100);
         const [expressionMax, setExpressionMax] = useState(1);
         const [timeLegendItems, setTimeLegendItems] = useState<
             Array<{ time: string; color: string }>
@@ -544,7 +537,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 });
 
                 spatialIndexRef.current = mapped;
-                setZoomDisplay(Math.round(transformRef.current.scale * 100));
                 return mapped;
             },
             [dimensions.width, dimensions.height, fixedBounds],
@@ -622,7 +614,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     return 0;
                 };
 
-                // Pass expression values for alpha if genes are selected
+                // Pass expression values for alpha if genes have data
                 renderPoints(
                     ctx,
                     points,
@@ -632,7 +624,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     defaultColor,
                     colorValues,
                     legendMaxRef.current,
-                    totalGenesSelected > 0,
+                    geneExpressionData.length > 0,
                     useAlpha,
                 );
 
@@ -658,7 +650,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 dimensions.height,
                 setupCanvas,
                 colorValues,
-                totalGenesSelected,
+                geneExpressionData.length,
                 useAlpha,
             ],
         );
@@ -853,12 +845,19 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
         useEffect(() => {
             if (data.length === 0) return;
-            // Skip render if genes are selected but we have no expression data yet (during strain switch)
-            if (totalGenesSelected > 0 && !colorValues) return;
+            if (colorMode === 'expression' && totalGenesSelected > 0 && !colorValues) return;
             const screenPoints = calculateScreenCoordinates(data);
             render(screenPoints);
             // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [data, colorValues, colorMode, dimensions.width, dimensions.height, useAlpha]);
+        }, [
+            data,
+            colorValues,
+            colorMode,
+            dimensions.width,
+            dimensions.height,
+            useAlpha,
+            geneExpressionData,
+        ]);
 
         useEffect(() => {
             return () => {
@@ -870,12 +869,6 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
 
         return (
             <ScatterPlotContainer ref={containerRef} onWheel={handleWheel}>
-                {isCapped && (
-                    <CappedWarning>
-                        Showing first {maxGenesToShow} genes of {totalGenesSelected} selected.
-                    </CappedWarning>
-                )}
-
                 <ZoomHint $visible={showZoomHint}>Double-click to reset zoom</ZoomHint>
 
                 <Canvas
@@ -895,7 +888,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 />
 
                 {showLegend &&
-                    (colorMode === 'expression' || (totalGenesSelected > 0 && useAlpha)) && (
+                    (colorMode === 'expression' || (geneExpressionData.length > 0 && useAlpha)) && (
                         <ExpressionAlphaLegend>
                             <AlphaLegendTitle>Expression</AlphaLegendTitle>
                             <AlphaGradientContainer>

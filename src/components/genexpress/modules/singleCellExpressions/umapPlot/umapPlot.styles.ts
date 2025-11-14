@@ -10,20 +10,6 @@ export const ScatterPlotContainer = styled.div`
     overscroll-behavior: contain;
 `;
 
-export const CappedWarning = styled.div`
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(255, 243, 205, 0.95);
-    color: #664d03;
-    border: 1px solid #ffecb5;
-    border-radius: 4px;
-    padding: 6px 8px;
-    font-size: 12px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    z-index: 1000;
-`;
-
 export const ZoomHint = styled.div<{ $visible: boolean }>`
     position: absolute;
     top: 10px;
@@ -36,7 +22,6 @@ export const ZoomHint = styled.div<{ $visible: boolean }>`
     pointer-events: none;
     opacity: ${({ $visible }) => ($visible ? 1 : 0)};
     transition: opacity 0.15s ease;
-    z-index: 999;
 `;
 
 export const Canvas = styled.canvas<{ $isDragging: boolean; $isHovering: boolean }>`

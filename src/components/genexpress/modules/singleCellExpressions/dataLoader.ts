@@ -1,7 +1,8 @@
 /**
  * Zarr-formatted single-cell data loader.
  *
- * Data structure (organized by strain):
+ * Data structure (organized by strain) stored server-side under
+ * `${server_url}${DATA_BASE_PATH}/...` (see `DATA_BASE_PATH` below):
  * - arrays/expression/: Zarr array with shape (n_genes, n_cells), chunked by gene (1, n_cells)
  * - genes/names.json: Array of gene IDs
  * - genes/symbols.json: Array of gene symbols
@@ -13,6 +14,7 @@
  */
 
 import { openArray, HTTPStore } from 'zarr';
+import { logWarning } from 'utils/errorUtils';
 
 const DATA_BASE_PATH = '/single-cell-data';
 const CACHE_VERSION = 1;
@@ -33,7 +35,7 @@ let dbInstance: IDBDatabase | null = null;
  * Set the current strain and reset cached instances
  */
 export function setStrain(strain: string): void {
-    if (strain !== currentStrain) {
+    if (strain !== getCurrentStrain()) {
         currentStrain = strain;
         // Reset instances to reload from new strain
         expressionStoreInstance = null;
@@ -52,82 +54,74 @@ export function getCurrentStrain(): string {
  * Get the data URL for the current strain
  */
 function getDataUrl(): string {
-    return `${DATA_BASE_PATH}/${currentStrain}`;
+    return `${DATA_BASE_PATH}/${getCurrentStrain()}`;
+}
+
+/**
+ * Generic data loading function for JSON files
+ */
+async function loadData<T>(path: string): Promise<T> {
+    const response = await fetch(`${getDataUrl()}/${path}`);
+    if (!response.ok) {
+        throw new Error(`Failed to load ${path}`);
+    }
+    return response.json();
 }
 
 /**
  * List available strains by fetching from strains.json
  * Returns a list of strain names (e.g., ['AX4', 'DH1'])
- * Falls back to ['AX4'] if strains.json is not found.
+ * Falls back to ['AX4'] if strains.json is not found or cannot be loaded.
  */
 export async function listAvailableStrains(): Promise<string[]> {
     try {
         const response = await fetch(`${DATA_BASE_PATH}/strains.json`);
-        if (response.ok) {
-            const strains: string[] = await response.json();
-            return strains;
+        if (!response.ok) {
+            throw new Error('Failed to load strains.json');
         }
-    } catch {
-        // eslint-disable-next-line no-console
-        console.warn('Could not load strains.json, using default strain list');
+        const data = await response.json().catch(() => {
+            throw new Error('Invalid JSON in strains.json');
+        });
+        return data;
+    } catch (error) {
+        logWarning('Could not load strains.json, using default strain list', { error });
+        return ['AX4'];
     }
-    // Fallback to default
-    return ['AX4'];
 }
 
 /**
  * Load gene IDs from JSON
  */
 export async function loadGeneNames(): Promise<string[]> {
-    const response = await fetch(`${getDataUrl()}/genes/names.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load gene names');
-    }
-    return response.json();
+    return loadData<string[]>('genes/names.json');
 }
 
 /**
  * Load gene symbols from JSON
  */
 export async function loadGeneSymbols(): Promise<string[]> {
-    const response = await fetch(`${getDataUrl()}/genes/symbols.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load gene symbols');
-    }
-    return response.json();
+    return loadData<string[]>('genes/symbols.json');
 }
 
 /**
  * Load cell tags from JSON
  */
 export async function loadCellTags(): Promise<string[]> {
-    const response = await fetch(`${getDataUrl()}/cells/tags.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load cell tags');
-    }
-    return response.json();
+    return loadData<string[]>('cells/tags.json');
 }
 
 /**
  * Load cell times from JSON
  */
 export async function loadCellTimes(): Promise<string[]> {
-    const response = await fetch(`${getDataUrl()}/cells/time.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load cell times');
-    }
-    return response.json();
+    return loadData<string[]>('cells/time.json');
 }
 
 /**
  * Load cell types from JSON
  */
 export async function loadCellTypes(): Promise<string[]> {
-    const response = await fetch(`${getDataUrl()}/cells/type.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load cell types');
-    }
-    return response.json();
+    return loadData<string[]>('cells/type.json');
 }
 
 /**
@@ -138,11 +132,7 @@ export async function loadDatasetInfo(): Promise<{
     n_genes: number;
     n_cells: number;
 }> {
-    const response = await fetch(`${getDataUrl()}/info.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load dataset info');
-    }
-    return response.json();
+    return loadData<{ strain: string; n_genes: number; n_cells: number }>('info.json');
 }
 
 /**
@@ -178,7 +168,7 @@ async function initCache(): Promise<IDBDatabase> {
 async function getCachedGeneExpression(geneIndex: number): Promise<Float32Array | null> {
     try {
         const db = await initCache();
-        const cacheKey = `${currentStrain}:${geneIndex}`;
+        const cacheKey = `${getCurrentStrain()}:${geneIndex}`;
         return new Promise<Float32Array | null>((resolve) => {
             const transaction = db.transaction([CACHE_STORE_NAME], 'readonly');
             const store = transaction.objectStore(CACHE_STORE_NAME);
@@ -191,10 +181,17 @@ async function getCachedGeneExpression(geneIndex: number): Promise<Float32Array 
                     resolve(null);
                 }
             };
-            request.onerror = () => resolve(null); // Fail silently, fetch from network
+            request.onerror = () => {
+                logWarning('Failed to read from gene expression cache', {
+                    geneIndex,
+                    error: request.error,
+                });
+                resolve(null); // Fail gracefully, fetch from network
+            };
         });
-    } catch {
-        return null; // Fail silently if IndexedDB is unavailable
+    } catch (error) {
+        logWarning('IndexedDB cache unavailable', { error });
+        return null;
     }
 }
 
@@ -205,7 +202,7 @@ async function getCachedGeneExpression(geneIndex: number): Promise<Float32Array 
 async function setCachedGeneExpression(geneIndex: number, data: Float32Array): Promise<void> {
     try {
         const db = await initCache();
-        const cacheKey = `${currentStrain}:${geneIndex}`;
+        const cacheKey = `${getCurrentStrain()}:${geneIndex}`;
         return new Promise((resolve) => {
             const transaction = db.transaction([CACHE_STORE_NAME], 'readwrite');
             const store = transaction.objectStore(CACHE_STORE_NAME);
@@ -213,10 +210,16 @@ async function setCachedGeneExpression(geneIndex: number, data: Float32Array): P
             const request = store.put(Array.from(data), cacheKey);
 
             request.onsuccess = () => resolve();
-            request.onerror = () => resolve(); // Fail silently
+            request.onerror = () => {
+                logWarning('Failed to cache gene expression', {
+                    geneIndex,
+                    error: request.error,
+                });
+                resolve();
+            };
         });
-    } catch {
-        // Fail silently if IndexedDB is unavailable
+    } catch (error) {
+        logWarning('IndexedDB cache unavailable', { error });
     }
 }
 
@@ -240,12 +243,7 @@ async function getExpressionArray() {
  * Load UMAP coordinates for all cells from JSON.
  */
 export async function loadUMAPCoordinates(): Promise<{ x: number[]; y: number[] }> {
-    const response = await fetch(`${getDataUrl()}/cells/umap.json`);
-    if (!response.ok) {
-        throw new Error('Failed to load UMAP coordinates');
-    }
-
-    const data: number[][] = await response.json();
+    const data = await loadData<number[][]>('cells/umap.json');
 
     const x: number[] = [];
     const y: number[] = [];
@@ -276,7 +274,7 @@ export async function loadGeneExpression(geneIndex: number): Promise<Float32Arra
     const data = await zarrArray.get([geneIndex, null]);
 
     if (typeof data === 'number') {
-        throw new Error('Expected array data but got scalar');
+        throw new TypeError('Expected array data but got scalar');
     }
 
     let typedData: Float32Array;
@@ -292,7 +290,7 @@ export async function loadGeneExpression(geneIndex: number): Promise<Float32Arra
         const flatData = (data.data as unknown[]).flat(Infinity) as number[];
         typedData = new Float32Array(flatData);
     } else {
-        throw new Error('Unexpected data structure from zarr array');
+        throw new TypeError('Unexpected data structure from zarr array');
     }
 
     // Cache for future use (async, don't wait)
@@ -304,11 +302,13 @@ export async function loadGeneExpression(geneIndex: number): Promise<Float32Arra
 /**
  * Load expression values for multiple genes in parallel with optimized batching.
  * Separates cached from uncached genes to minimize network requests.
+ * Returns both successful data and indices of failed genes.
  */
 export async function loadMultipleGenesExpression(
     geneIndices: number[],
-): Promise<Map<number, Float32Array>> {
+): Promise<{ data: Map<number, Float32Array>; failedIndices: number[] }> {
     const results = new Map<number, Float32Array>();
+    const failedGenes: number[] = [];
 
     // Separate cached and uncached genes
     const cacheChecks = await Promise.all(
@@ -333,24 +333,30 @@ export async function loadMultipleGenesExpression(
         const promises = uncachedIndices.map(async (geneIndex) => {
             try {
                 const data = await loadGeneExpression(geneIndex);
-                return { geneIndex, data };
+                return { geneIndex, data, error: null };
             } catch (error) {
-                // eslint-disable-next-line no-console
-                console.error(`Failed to load gene ${geneIndex}:`, error);
-                return null;
+                return { geneIndex, data: null, error };
             }
         });
 
         const loadedGenes = await Promise.all(promises);
 
         for (const result of loadedGenes) {
-            if (result) {
+            if (result.data) {
                 results.set(result.geneIndex, result.data);
+            } else {
+                failedGenes.push(result.geneIndex);
             }
+        }
+
+        if (failedGenes.length === uncachedIndices.length) {
+            throw new Error(
+                `Failed to load expression data for gene(s) at indices: ${failedGenes.join(', ')}`,
+            );
         }
     }
 
-    return results;
+    return { data: results, failedIndices: failedGenes };
 }
 
 /**
@@ -369,8 +375,7 @@ export async function clearCache(): Promise<void> {
                 reject(new Error(request.error?.message || 'Failed to clear cache'));
         });
     } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to clear cache:', error);
+        logWarning('Failed to clear cache', { error });
     }
 }
 
@@ -457,26 +462,11 @@ export function transformExpression(
     expression: Float32Array,
     mode: 'linear' | 'log2' | 'log1p',
 ): Float32Array {
-    const result = new Float32Array(expression.length);
+    const transformer = {
+        linear: (value: number) => value,
+        log2: (value: number) => (value > 0 ? Math.log2(value + 1) : 0),
+        log1p: (value: number) => Math.log1p(value),
+    }[mode];
 
-    for (let i = 0; i < expression.length; i++) {
-        const val = expression[i];
-
-        switch (mode) {
-            case 'log2':
-                result[i] = val > 0 ? Math.log2(val + 1) : 0;
-                break;
-
-            case 'log1p':
-                result[i] = Math.log1p(val);
-                break;
-
-            case 'linear':
-            default:
-                result[i] = val;
-                break;
-        }
-    }
-
-    return result;
+    return new Float32Array(expression.map(transformer));
 }
