@@ -220,7 +220,10 @@ const SingleCellExpressions = ({
                 }
 
                 if (geneIndices.length === 0) {
-                    if (requestId !== geneExpressionRequestIdRef.current) return;
+                    if (requestId !== geneExpressionRequestIdRef.current) {
+                        connectedSingleCellExpressionsFetchEnded();
+                        return;
+                    }
                     setColorValues(undefined);
                     setGeneExpressionData([]);
                     setLoadingGeneExpression(false);
@@ -232,6 +235,7 @@ const SingleCellExpressions = ({
                     await loadMultipleGenesExpression(geneIndices);
 
                 if (requestId !== geneExpressionRequestIdRef.current) {
+                    connectedSingleCellExpressionsFetchEnded();
                     return;
                 }
 
@@ -273,6 +277,7 @@ const SingleCellExpressions = ({
                 setGeneExpressionData(transformedGeneData);
             } catch (error) {
                 if (requestId !== geneExpressionRequestIdRef.current) {
+                    connectedSingleCellExpressionsFetchEnded();
                     return;
                 }
                 dispatch(handleError('Error loading single cell gene expression data.', error));
