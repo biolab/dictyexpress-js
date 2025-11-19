@@ -439,8 +439,8 @@ describe('SingleCellExpressions integration', () => {
             });
 
             const transformSelect = screen.getByLabelText('Transform');
-            // Log2 is default - check it's displayed
-            expect(screen.getAllByText('Log2').length).toBeGreaterThan(0);
+            // Log1p is default - check it's displayed
+            expect(screen.getAllByText('Log1p').length).toBeGreaterThan(0);
 
             fireEvent.mouseDown(transformSelect);
             const linearOptions = await screen.findAllByText('Linear');
@@ -461,20 +461,14 @@ describe('SingleCellExpressions integration', () => {
 
             const transformSelect = screen.getByLabelText('Transform');
 
-            // Test Log2 (default)
-            expect(screen.getAllByText('Log2').length).toBeGreaterThan(0);
+            // Test Log1p (default)
+            expect(screen.getAllByText('Log1p').length).toBeGreaterThan(0);
 
             // Test Linear
             fireEvent.mouseDown(transformSelect);
             const linearOptions = await screen.findAllByText('Linear');
             fireEvent.click(linearOptions[linearOptions.length - 1]);
             await waitFor(() => expect(screen.getAllByText('Linear').length).toBeGreaterThan(0));
-
-            // Test Log1p
-            fireEvent.mouseDown(transformSelect);
-            const log1pOptions = await screen.findAllByText('Log1p');
-            fireEvent.click(log1pOptions[log1pOptions.length - 1]);
-            await waitFor(() => expect(screen.getAllByText('Log1p').length).toBeGreaterThan(0));
         });
     });
 

@@ -460,12 +460,11 @@ export function aggregateGeneExpression(
  */
 export function transformExpression(
     expression: Float32Array,
-    mode: 'linear' | 'log2' | 'log1p',
+    mode: 'linear' | 'log1p',
 ): Float32Array {
     const transformer = {
         linear: (value: number) => value,
-        log2: (value: number) => (value > 0 ? Math.log2(value + 1) : 0),
-        log1p: (value: number) => Math.log1p(value),
+        log1p: (value: number) => (value >= 0 ? Math.log1p(value) : 0),
     }[mode];
 
     return new Float32Array(expression.map(transformer));

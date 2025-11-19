@@ -102,7 +102,7 @@ const SingleCellExpressions = ({
 
     // State for controls
     const [colorMode, setColorMode] = useState<'time' | 'cell_type' | 'expression'>('time');
-    const [transformMode, setTransformMode] = useState<'linear' | 'log2' | 'log1p'>('log2');
+    const [transformMode, setTransformMode] = useState<'linear' | 'log1p'>('log1p');
     const [aggregationMode, setAggregationMode] = useState<'average' | 'sum' | 'min' | 'max'>(
         'average',
     );
@@ -420,11 +420,10 @@ const SingleCellExpressions = ({
                             label="Transform"
                             value={transformMode}
                             handleOnChange={(e: SelectChangeEvent<unknown>) =>
-                                setTransformMode(e.target.value as 'linear' | 'log2' | 'log1p')
+                                setTransformMode(e.target.value as 'linear' | 'log1p')
                             }
                         >
                             <MenuItem value="linear">Linear</MenuItem>
-                            <MenuItem value="log2">Log2</MenuItem>
                             <MenuItem value="log1p">Log1p</MenuItem>
                         </StyledDictySelect>
 

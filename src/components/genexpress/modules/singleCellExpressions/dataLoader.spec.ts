@@ -540,17 +540,6 @@ describe('dataLoader', () => {
             expect(result[4]).toBeCloseTo(8.0);
         });
 
-        it('should apply log2 transformation', () => {
-            const result = transformExpression(expression, 'log2');
-
-            expect(result.length).toBe(5);
-            expect(result[0]).toBeCloseTo(0.0); // log2(0+1) = 0
-            expect(result[1]).toBeCloseTo(1.0); // log2(1+1) = 1
-            expect(result[2]).toBeCloseTo(Math.log2(3)); // log2(2+1)
-            expect(result[3]).toBeCloseTo(Math.log2(5)); // log2(4+1)
-            expect(result[4]).toBeCloseTo(Math.log2(9)); // log2(8+1)
-        });
-
         it('should apply log1p transformation', () => {
             const result = transformExpression(expression, 'log1p');
 
@@ -562,18 +551,18 @@ describe('dataLoader', () => {
             expect(result[4]).toBeCloseTo(Math.log1p(8.0));
         });
 
-        it('should handle zero values in log2 transformation', () => {
+        it('should handle zero values in log1p transformation', () => {
             const zeroExpr = new Float32Array([0.0, 0.0, 0.0]);
-            const result = transformExpression(zeroExpr, 'log2');
+            const result = transformExpression(zeroExpr, 'log1p');
 
             expect(result[0]).toBe(0.0);
             expect(result[1]).toBe(0.0);
             expect(result[2]).toBe(0.0);
         });
 
-        it('should handle negative values in log2 transformation', () => {
+        it('should handle negative values in log1p transformation', () => {
             const negExpr = new Float32Array([-1.0, -2.0]);
-            const result = transformExpression(negExpr, 'log2');
+            const result = transformExpression(negExpr, 'log1p');
 
             // Negative values should result in 0 according to the implementation
             expect(result[0]).toBe(0.0);
@@ -584,7 +573,7 @@ describe('dataLoader', () => {
             const original = new Float32Array([1.0, 2.0, 3.0]);
             const originalCopy = new Float32Array(original);
 
-            transformExpression(original, 'log2');
+            transformExpression(original, 'log1p');
 
             // Original should remain unchanged
             expect(original).toEqual(originalCopy);
@@ -592,11 +581,11 @@ describe('dataLoader', () => {
 
         it('should handle large values', () => {
             const largeExpr = new Float32Array([100.0, 1000.0, 10000.0]);
-            const result = transformExpression(largeExpr, 'log2');
+            const result = transformExpression(largeExpr, 'log1p');
 
-            expect(result[0]).toBeCloseTo(Math.log2(101));
-            expect(result[1]).toBeCloseTo(Math.log2(1001));
-            expect(result[2]).toBeCloseTo(Math.log2(10001));
+            expect(result[0]).toBeCloseTo(Math.log1p(100));
+            expect(result[1]).toBeCloseTo(Math.log1p(1000));
+            expect(result[2]).toBeCloseTo(Math.log1p(10000));
         });
 
         it('should handle very small values', () => {
