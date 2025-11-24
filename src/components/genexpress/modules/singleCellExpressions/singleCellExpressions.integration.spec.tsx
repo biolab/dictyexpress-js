@@ -221,12 +221,12 @@ describe('SingleCellExpressions integration', () => {
             });
         });
 
-        it('should default to time color mode', async () => {
-            // Check that "Time" option is displayed as selected
+        it('should default to expression color mode', async () => {
+            // Check that "Expression" option is displayed as selected
             expect(await screen.findByLabelText('Color by')).toBeInTheDocument();
-            // The selected value "Time" should be visible
-            const timeTexts = screen.getAllByText('Time');
-            expect(timeTexts.length).toBeGreaterThan(0);
+            // The selected value "Expression" should be visible
+            const expressionTexts = screen.getAllByText('Expression');
+            expect(expressionTexts.length).toBeGreaterThan(0);
         });
 
         it('should switch to cell type color mode', async () => {
@@ -241,17 +241,6 @@ describe('SingleCellExpressions integration', () => {
                 const cellTypeTexts = screen.getAllByText('Cell Type');
                 expect(cellTypeTexts.length).toBeGreaterThan(0);
             });
-        });
-
-        it('should disable expression mode when no genes selected', () => {
-            const colorBySelect = screen.getByLabelText('Color by');
-
-            fireEvent.mouseDown(colorBySelect);
-
-            const expressionOption = screen
-                .getAllByRole('option')
-                .find((el) => el.textContent === 'Expression');
-            expect(expressionOption).toHaveAttribute('aria-disabled', 'true');
         });
     });
 
@@ -381,13 +370,6 @@ describe('SingleCellExpressions integration', () => {
                     }),
                 ).not.toBeInTheDocument();
             });
-
-            const colorBySelect = screen.getByLabelText('Color by');
-            fireEvent.mouseDown(colorBySelect);
-            const expressionOption = (await screen.findAllByRole('option')).find(
-                (option) => option.textContent === 'Expression',
-            );
-            expect(expressionOption).toHaveAttribute('aria-disabled', 'true');
         });
 
         it('should handle genes without expression data', async () => {
@@ -560,7 +542,7 @@ describe('SingleCellExpressions integration', () => {
     });
 
     describe('legend toggle', () => {
-        it('should display legend toggle', async () => {
+        it('should display legend toggle on inital load but disabled when no genes', async () => {
             customRender(<SingleCellExpressions />, { initialState });
 
             await waitFor(() => {
@@ -568,13 +550,63 @@ describe('SingleCellExpressions integration', () => {
             });
 
             expect(screen.getByText('Legend')).toBeInTheDocument();
+            const legendLabel = screen.getByText('Legend').closest('label');
+            expect(legendLabel).toHaveClass('Mui-disabled');
         });
 
-        it('should toggle legend visibility', async () => {
+        it('should enable legend toggle when genes are selected', async () => {
+            const gene1 = generateGene(mockGeneNames[0], 'dictyBase', 'Dictyostelium discoideum');
+            gene1.name = mockGeneSymbols[0];
+
+            initialState.genes.byId = {
+                [gene1.feature_id]: gene1,
+            };
+            initialState.genes.selectedGenesIds = [gene1.feature_id];
+
+            (dataLoader.loadMultipleGenesExpression as ReturnType<typeof vi.fn>).mockResolvedValue({
+                data: new Map([[0, generateMockGeneExpression(nCells)]]),
+                failedIndices: [],
+            });
+
             customRender(<SingleCellExpressions />, { initialState });
 
             await waitFor(() => {
                 expect(screen.queryByText('Loading single-cell data...')).not.toBeInTheDocument();
+            });
+
+            await waitFor(() => {
+                expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
+            });
+
+            const legendLabel = screen.getByText('Legend').closest('label');
+            expect(legendLabel).not.toHaveClass('Mui-disabled');
+
+            const legendSwitch = legendLabel?.querySelector('input[type="checkbox"]');
+            expect(legendSwitch).toBeChecked();
+        });
+
+        it('should toggle legend visibility', async () => {
+            const gene1 = generateGene(mockGeneNames[0], 'dictyBase', 'Dictyostelium discoideum');
+            gene1.name = mockGeneSymbols[0];
+
+            initialState.genes.byId = {
+                [gene1.feature_id]: gene1,
+            };
+            initialState.genes.selectedGenesIds = [gene1.feature_id];
+
+            (dataLoader.loadMultipleGenesExpression as ReturnType<typeof vi.fn>).mockResolvedValue({
+                data: new Map([[0, generateMockGeneExpression(nCells)]]),
+                failedIndices: [],
+            });
+
+            customRender(<SingleCellExpressions />, { initialState });
+
+            await waitFor(() => {
+                expect(screen.queryByText('Loading single-cell data...')).not.toBeInTheDocument();
+            });
+
+            await waitFor(() => {
+                expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
             });
 
             const legendSwitch = screen
@@ -616,6 +648,11 @@ describe('SingleCellExpressions integration', () => {
                 expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
             });
 
+            const colorBySelect = screen.getByLabelText('Color by');
+            fireEvent.mouseDown(colorBySelect);
+            const timeOptions = await screen.findAllByText('Time');
+            fireEvent.click(timeOptions[timeOptions.length - 1]);
+
             const expressionToggle = screen.getByLabelText('Expression', {
                 selector: 'input[type="checkbox"]',
             });
@@ -628,6 +665,11 @@ describe('SingleCellExpressions integration', () => {
             await waitFor(() => {
                 expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
             });
+
+            const colorBySelect = screen.getByLabelText('Color by');
+            fireEvent.mouseDown(colorBySelect);
+            const timeOptions = await screen.findAllByText('Time');
+            fireEvent.click(timeOptions[timeOptions.length - 1]);
 
             const expressionSwitch = screen.getByLabelText('Expression', {
                 selector: 'input[type="checkbox"]',
@@ -648,6 +690,11 @@ describe('SingleCellExpressions integration', () => {
                 expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
             });
 
+            const colorBySelect = screen.getByLabelText('Color by');
+            fireEvent.mouseDown(colorBySelect);
+            const timeOptions = await screen.findAllByText('Time');
+            fireEvent.click(timeOptions[timeOptions.length - 1]);
+
             // Count expression toggles before switching mode
             const legendLabel = screen.getByText('Legend');
             const controlsContainerBefore = legendLabel.closest('div');
@@ -660,7 +707,6 @@ describe('SingleCellExpressions integration', () => {
             expect(hasExpressionToggleBefore).toBe(true);
 
             // Switch to expression mode
-            const colorBySelect = screen.getByLabelText('Color by');
             fireEvent.mouseDown(colorBySelect);
             const expressionOptions = await screen.findAllByText('Expression');
             // Click the dropdown option (not the toggle)
@@ -691,52 +737,6 @@ describe('SingleCellExpressions integration', () => {
 
             // Should not call loadMultipleGenesExpression
             expect(dataLoader.loadMultipleGenesExpression).not.toHaveBeenCalled();
-        });
-
-        it('should auto-switch from expression mode when genes have no data', async () => {
-            const gene1 = generateGene(mockGeneNames[0], 'dictyBase', 'Dictyostelium discoideum');
-            gene1.name = mockGeneSymbols[0];
-
-            initialState.genes.byId = { [gene1.feature_id]: gene1 };
-            initialState.genes.selectedGenesIds = [gene1.feature_id];
-
-            (dataLoader.loadMultipleGenesExpression as ReturnType<typeof vi.fn>).mockResolvedValue({
-                data: new Map([[0, generateMockGeneExpression(nCells)]]),
-                failedIndices: [],
-            });
-
-            customRender(<SingleCellExpressions />, { initialState });
-
-            await waitFor(() => {
-                expect(dataLoader.loadMultipleGenesExpression).toHaveBeenCalled();
-            });
-
-            const colorBySelect = screen.getByLabelText('Color by');
-            fireEvent.mouseDown(colorBySelect);
-            const expressionOptions = await screen.findAllByText('Expression');
-            fireEvent.click(expressionOptions[expressionOptions.length - 1]);
-
-            await waitFor(() => {
-                const selectedExpressionTexts = screen.getAllByText('Expression');
-                expect(selectedExpressionTexts.length).toBeGreaterThan(0);
-            });
-
-            const geneCountButton = await screen.findByText(/1 \/ 1 gene with data/);
-            fireEvent.click(geneCountButton);
-
-            const removeAllButton = await screen.findByText(/Remove all/);
-            fireEvent.click(removeAllButton);
-
-            await waitFor(() => {
-                expect(
-                    screen.queryByText('Single-cell Expression Data Status'),
-                ).not.toBeInTheDocument();
-            });
-
-            await waitFor(() => {
-                const timeTexts = screen.getAllByText('Time');
-                expect(timeTexts.length).toBeGreaterThan(0);
-            });
         });
 
         it('should support multiple strains and allow switching between them', async () => {

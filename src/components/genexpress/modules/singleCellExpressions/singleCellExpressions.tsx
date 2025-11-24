@@ -101,7 +101,7 @@ const SingleCellExpressions = ({
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // State for controls
-    const [colorMode, setColorMode] = useState<'time' | 'cell_type' | 'expression'>('time');
+    const [colorMode, setColorMode] = useState<'expression' | 'time' | 'cell_type'>('expression');
     const [transformMode, setTransformMode] = useState<'linear' | 'log1p'>('log1p');
     const [aggregationMode, setAggregationMode] = useState<'average' | 'sum' | 'min' | 'max'>(
         'average',
@@ -304,12 +304,14 @@ const SingleCellExpressions = ({
         connectedSingleCellExpressionsFetchEnded,
     ]);
 
-    /**
-     * Auto-switch from expression mode when no genes with data
-     */
+    // /**
+    //  * Auto-switch from expression mode when no genes with data
+    //  */
     useEffect(() => {
         if (geneExpressionData.length === 0 && colorMode === 'expression') {
-            setColorMode('time');
+            setShowLegend(false);
+        } else {
+            setShowLegend(true);
         }
     }, [geneExpressionData.length, colorMode]);
 
@@ -404,14 +406,12 @@ const SingleCellExpressions = ({
                     label="Color by"
                     value={colorMode}
                     handleOnChange={(e: SelectChangeEvent<unknown>) =>
-                        setColorMode(e.target.value as 'time' | 'cell_type' | 'expression')
+                        setColorMode(e.target.value as 'expression' | 'time' | 'cell_type')
                     }
                 >
+                    <MenuItem value="expression">Expression</MenuItem>
                     <MenuItem value="time">Time</MenuItem>
                     <MenuItem value="cell_type">Cell Type</MenuItem>
-                    <MenuItem value="expression" disabled={shownGenesCount === 0}>
-                        Expression
-                    </MenuItem>
                 </StyledDictySelect>
 
                 {shownGenesCount > 0 && (colorMode === 'expression' || useAlpha) && (
@@ -472,6 +472,7 @@ const SingleCellExpressions = ({
                                 size="small"
                             />
                         }
+                        disabled={shownGenesCount === 0 && colorMode === 'expression'}
                         label="Legend"
                         labelPlacement="top"
                     />
