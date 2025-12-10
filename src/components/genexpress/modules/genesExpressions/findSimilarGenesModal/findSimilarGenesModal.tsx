@@ -1,6 +1,6 @@
 import React, { ReactElement, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { ColDef, ValueGetterParams } from 'ag-grid-community';
+import { ColDef, ValueFormatterParams, ValueGetterParams } from 'ag-grid-community';
 import { Box, Button, MenuItem, SelectChangeEvent } from '@mui/material';
 import {
     QueryGeneSelectFormControl,
@@ -76,8 +76,9 @@ const columnDefs = [
         width: 35,
     },
     {
-        valueGetter: (params: ValueGetterParams): string => {
-            return formatNumber(params.data.distance, 'long');
+        field: 'distance',
+        valueFormatter: (params: ValueFormatterParams): string => {
+            return formatNumber(params.value, 'long');
         },
         headerName: 'Score',
         width: 90,
