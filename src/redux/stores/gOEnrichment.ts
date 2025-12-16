@@ -8,7 +8,14 @@ import {
 import { combineReducers, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { clearStateOnActions } from './common';
 import createIsFetchingSlice from './fetch';
-import { allGenesDeselected, geneDeselected, genesSelected } from './genes';
+import {
+    allGenesDeselected,
+    geneDeselected,
+    genesSelected,
+    geneHighlighted,
+    genesHighlighted,
+    geneUnhighlighted,
+} from './genes';
 import { timeSeriesSelected } from './timeSeries';
 import { EnhancedGOEnrichmentJson } from 'redux/models/internal';
 import { gOEnrichmentDataFetchSucceeded } from 'redux/epics/epicsActions';
@@ -46,6 +53,9 @@ const gOEnrichmentJsonSlice = createSlice({
                 allGenesDeselected,
                 geneDeselected,
                 genesSelected,
+                geneHighlighted,
+                genesHighlighted,
+                geneUnhighlighted,
                 pValueThresholdSlice.actions.pValueThresholdChanged,
             ],
             gOEnrichmentJsonInitialState,

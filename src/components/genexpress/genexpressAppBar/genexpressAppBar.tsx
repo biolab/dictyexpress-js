@@ -3,6 +3,7 @@ import { Button, CircularProgress, Popover, Menu, MenuItem } from '@mui/material
 import { Bookmark as BookmarkIcon } from '@mui/icons-material';
 import { connect, ConnectedProps, useStore } from 'react-redux';
 import { Link, useLocation } from 'react-router-dom';
+import { useTutorial } from '../tutorial';
 import { LoadingBar } from '../common/dictyModule/dictyModule.styles';
 import * as reportBuilder from '../common/reportBuilder/reportBuilder';
 import IconButtonWithTooltip from '../common/iconButtonWithTooltip/iconButtonWithTooltip';
@@ -77,6 +78,7 @@ const GenexpressAppBar = ({
     isFetchingGOEnrichmentJson,
 }: GenexpressAppBarProps): ReactElement => {
     const location = useLocation();
+    const { startTutorial, showTutorialHint, isRunning } = useTutorial();
 
     const [userMenuOpened, setUserMenuOpened] = useState(false);
     const [exportPrefixModalOpened, setExportPrefixModalOpened] = useState(false);
@@ -135,6 +137,7 @@ const GenexpressAppBar = ({
                     }}
                     disabled={isFetchingTimeSeries}
                     ref={bookmarkButtonElement}
+                    data-tutorial="bookmark-button"
                 >
                     <BookmarkIcon />
                 </IconButtonWithTooltip>
@@ -150,6 +153,7 @@ const GenexpressAppBar = ({
                     onClick={(): void => {
                         setExportPrefixModalOpened(true);
                     }}
+                    data-tutorial="export-button"
                 >
                     {isExporting ? <CircularProgress size={20} /> : <DownloadIcon />}
                 </IconButtonWithTooltip>
@@ -157,8 +161,15 @@ const GenexpressAppBar = ({
                     onClick={() => {
                         connectedLayoutsReset();
                     }}
+                    data-tutorial="default-layout-button"
                 >
                     Default layout
+                </Button>
+                <Button
+                    onClick={startTutorial}
+                    className={showTutorialHint && !isRunning ? 'tutorial-button-hint' : undefined}
+                >
+                    Tutorial
                 </Button>
                 {isLoggedIn ? (
                     <Button onClick={(): void => setUserMenuOpened(true)} ref={userButtonElement}>

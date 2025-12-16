@@ -22,7 +22,11 @@ import {
     gOEnrichmentJsonFetchSucceeded,
     gOEnrichmentStatusUpdated,
 } from 'redux/stores/gOEnrichment';
-import { getSelectedGenes, getSelectedGenesSortedById } from 'redux/stores/genes';
+import {
+    getSelectedGenes,
+    getSelectedGenesSortedById,
+    getHighlightedGenesSortedById,
+} from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
 
 export const gOEnrichmentProcessDebounceTime = 3000;
@@ -51,12 +55,16 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
                     return getPValueThreshold(state.gOEnrichment);
                 }),
             ),
-            // Each time selected genes change, emit null and then debounced selected genes. Without emitting null,
+            // Each time selected/highlighted genes change, emit null and then debounced genes. Without emitting null,
             // getProcessDataEpicsFactory will treat the empty array as no selected genes.
+            // When genes are highlighted, use highlighted genes for GO enrichment, otherwise use selected genes.
             merge(
                 state$.pipe(
                     mapStateSlice((state) => {
-                        return getSelectedGenesSortedById(state.genes);
+                        const highlighted = getHighlightedGenesSortedById(state.genes);
+                        return highlighted.length > 0
+                            ? highlighted
+                            : getSelectedGenesSortedById(state.genes);
                     }),
                     switchMap(() => {
                         return of(null);
@@ -65,7 +73,10 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
                 state$
                     .pipe(
                         mapStateSlice((state) => {
-                            return getSelectedGenesSortedById(state.genes);
+                            const highlighted = getHighlightedGenesSortedById(state.genes);
+                            return highlighted.length > 0
+                                ? highlighted
+                                : getSelectedGenesSortedById(state.genes);
                         }),
                     )
                     .pipe(debounceTime(gOEnrichmentProcessDebounceTime)),

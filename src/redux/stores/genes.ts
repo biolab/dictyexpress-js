@@ -145,6 +145,22 @@ export const getGenesIdsInStore = createSelector(getGenes, (genes) =>
 
 export const getHighlightedGenesIds = (state: GenesState): Gene['feature_id'][] =>
     state.highlightedGenesIds;
+
+export const getHighlightedGenes = createSelector(
+    getGenesById,
+    getHighlightedGenesIds,
+    (genesById, highlightedGenesIds) => {
+        return highlightedGenesIds
+            .map((geneId) => genesById[geneId])
+            .filter((gene) => gene != null);
+    },
+    { memoizeOptions: { resultEqualityCheck: shallowEqual } },
+);
+export const getHighlightedGenesSortedById = createSelector(
+    getHighlightedGenes,
+    (highlightedGenes) => _.sortBy(highlightedGenes, (gene) => gene.feature_id),
+);
+
 export const isFetchingDifferentialExpressionGenes = (state: GenesState): boolean =>
     state.isFetchingDifferentialExpressionGenes;
 export const getIsFetchingAssociationsGenes = (state: GenesState): boolean =>

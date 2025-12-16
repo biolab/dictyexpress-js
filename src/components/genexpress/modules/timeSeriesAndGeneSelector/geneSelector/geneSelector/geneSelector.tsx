@@ -326,6 +326,7 @@ const GeneSelector = ({
             </TitleSection>
             <Tooltip title={selectedTimeSeries == null ? 'First select a time series.' : ''}>
                 <Autocomplete
+                    data-tutorial="gene-search-input"
                     open={autocompleteOpen}
                     autoHighlight
                     filterOptions={(x) => x}
@@ -365,6 +366,17 @@ const GeneSelector = ({
                     forcePopupIcon={false}
                     disableClearable
                     disabled={isDisabled}
+                    slotProps={{
+                        popper: {
+                            placement: 'top',
+                        },
+                    }}
+                    ListboxProps={{
+                        style: {
+                            maxHeight: '300px',
+                            overflow: 'auto',
+                        },
+                    }}
                     renderInput={(params): ReactElement => (
                         <TextField
                             // eslint-disable-next-line react/jsx-props-no-spreading

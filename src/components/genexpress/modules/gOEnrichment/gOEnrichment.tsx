@@ -14,7 +14,7 @@ import GOEnrichmentMatchedCell from './matchedCell/matchedCell';
 import TermCell from './termCell/termCell';
 import GOEnrichmentAssociationsModal from './associationsModal/associationsModal';
 import { RootState } from 'redux/rootReducer';
-import { getSelectedGenes } from 'redux/stores/genes';
+import { getSelectedGenes, getHighlightedGenes } from 'redux/stores/genes';
 import {
     getGOEnrichmentJson,
     getIsFetchingGOEnrichmentJson,
@@ -43,6 +43,7 @@ const mapStateToProps = (state: RootState) => {
     return {
         pValueThreshold: getPValueThreshold(state.gOEnrichment),
         selectedGenes: getSelectedGenes(state.genes),
+        highlightedGenes: getHighlightedGenes(state.genes),
         isFetchingGOEnrichmentJson: getIsFetchingGOEnrichmentJson(state.gOEnrichment),
         gOEnrichmentJson: getGOEnrichmentJson(state.gOEnrichment),
     };
@@ -64,9 +65,12 @@ const GOEnrichment = ({
     gOEnrichmentJson,
     pValueThreshold,
     selectedGenes,
+    highlightedGenes,
     connectedPValueThresholdChanged,
     isFetchingGOEnrichmentJson,
 }: PropsFromRedux): ReactElement => {
+    // Use highlighted genes for GO enrichment when available, otherwise use selected genes
+    const genesForEnrichment = highlightedGenes.length > 0 ? highlightedGenes : selectedGenes;
     const [selectedAspect, setSelectedAspect] = useBookmarkableState(
         aspectOptions[0],
         BookmarkStatePath.gOEnrichmentSelectedAspect,
@@ -111,17 +115,18 @@ const GOEnrichment = ({
     }, [gOEnrichmentJson]);
 
     const getCaption = useCallback((): string => {
-        const genes = advancedJoin(selectedGenes.map(({ name }) => name));
+        const genes = advancedJoin(genesForEnrichment.map(({ name }) => name));
         const termTables = advancedJoin(aspectOptions.map(({ label }) => `${label}.tsv`));
+        const geneType = highlightedGenes.length > 0 ? 'highlighted' : 'selected';
 
         return `
 Identified significantly enriched Gene Ontology terms (p-value < ${pValueThreshold})
-for selected genes (${genes}).
+for ${geneType} genes (${genes}).
 
 Tables ${termTables} are sorted by p-value.
 A list of all gene associations for each term is available in a separate file - all_associations.tsv.
     `.trim();
-    }, [pValueThreshold, selectedGenes]);
+    }, [pValueThreshold, genesForEnrichment, highlightedGenes.length]);
 
     useReport(
         async (processFile) => {
@@ -392,13 +397,16 @@ A list of all gene associations for each term is available in a separate file - 
                             getRowId={(data) => getRowId(data, data.path)}
                         />
                     )}
-                    {isFetchingGOEnrichmentJson &&
-                        `Computing Gene Ontology Enrichment for ${selectedGenes.length} ${pluralize('gene', selectedGenes.length)}.`}
+                    {(isFetchingGOEnrichmentJson ||
+                        (gOEnrichmentJson == null && genesForEnrichment.length > 0)) &&
+                        `Computing Gene Ontology Enrichment for ${genesForEnrichment.length} ${highlightedGenes.length > 0 ? 'highlighted ' : ''}${pluralize('gene', genesForEnrichment.length)}.`}
                     {/* Only display info's about enriched terms when fetching data is complete. */}
                     {isFetchingGOEnrichmentJson === false &&
-                        allAspectsEmpty &&
+                        ((gOEnrichmentJson != null && allAspectsEmpty) ||
+                            (gOEnrichmentJson == null && genesForEnrichment.length === 0)) &&
                         'Enriched terms not found.'}
                     {isFetchingGOEnrichmentJson === false &&
+                        gOEnrichmentJson != null &&
                         !allAspectsEmpty &&
                         gOEnrichmentRows.length === 0 &&
                         'Enriched terms not found within selected aspect.'}

@@ -1,7 +1,36 @@
-import styled from 'styled-components';
-import { AppBar } from '@mui/material';
+import styled, { keyframes, css } from 'styled-components';
+import { AppBar, Button } from '@mui/material';
 import { GetApp } from '@mui/icons-material';
 import { Title } from 'components/landing/common/title.styles';
+
+const gradientShift = keyframes`
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+`;
+
+export const TutorialButton = styled(Button)<{ $highlight?: boolean }>`
+    ${({ $highlight }) =>
+        $highlight &&
+        css`
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+            background-size: 200% 200%;
+            animation: ${gradientShift} 3s ease infinite;
+            color: white !important;
+            font-weight: 500;
+            border-radius: 20px;
+            padding: 6px 16px;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+            transition:
+                transform 0.2s,
+                box-shadow 0.2s;
+
+            &:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+            }
+        `}
+`;
 
 export const GenexpressAppBarWrapper = styled(AppBar)`
     background-color: #fff;
