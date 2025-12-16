@@ -12,17 +12,18 @@ export const TUTORIAL_STEP = {
     SINGLE_CELL_INTRO: 4,
     COLOR_TIME: 5,
     TIMING_OBSERVATION: 6,
-    STRAIN_SELECT: 7,
-    STRAIN_BACK_TO_AX4: 8,
-    DIFFERENTIAL_INTRO: 9,
-    VOLCANO_SELECT: 10,
-    VOLCANO_MODAL: 11,
-    SELECT_ALL: 12,
-    CLUSTERING: 13,
-    SELECT_CLUSTER: 14,
-    CROSS_MODULE: 15,
-    GO_ENRICHMENT: 16,
-    CLOSING: 17,
+    COLOR_CELL_TYPE: 7,
+    STRAIN_SELECT: 8,
+    STRAIN_BACK_TO_AX4: 9,
+    DIFFERENTIAL_INTRO: 10,
+    VOLCANO_SELECT: 11,
+    VOLCANO_MODAL: 12,
+    SELECT_ALL: 13,
+    CLUSTERING: 14,
+    SELECT_CLUSTER: 15,
+    CROSS_MODULE: 16,
+    GO_ENRICHMENT: 17,
+    CLOSING: 18,
 } as const;
 
 /**
@@ -50,6 +51,10 @@ export const DROPDOWN_STEP_CONFIG: Record<number, DropdownStepConfig> = {
     [TUTORIAL_STEP.COLOR_TIME]: {
         selector: TUTORIAL_TARGETS.singleCellColorDropdown,
         expectedValue: 'time',
+    },
+    [TUTORIAL_STEP.COLOR_CELL_TYPE]: {
+        selector: TUTORIAL_TARGETS.singleCellColorDropdown,
+        expectedValue: 'Cell type',
     },
     [TUTORIAL_STEP.STRAIN_SELECT]: {
         selector: TUTORIAL_TARGETS.singleCellStrainDropdown,

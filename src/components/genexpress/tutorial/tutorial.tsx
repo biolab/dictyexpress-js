@@ -67,6 +67,7 @@ const Tutorial = (): ReactElement => {
         timeSeries: false,
         geneSearch: false,
         colorTime: false,
+        colorCellType: false,
         strainSelect: false,
         strainBackToAX4: false,
         spearmanSelect: false,
@@ -81,6 +82,9 @@ const Tutorial = (): ReactElement => {
                 colorTime:
                     getDropdownValue(TUTORIAL_TARGETS.singleCellColorDropdown)?.toLowerCase() ===
                     'time',
+                colorCellType:
+                    getDropdownValue(TUTORIAL_TARGETS.singleCellColorDropdown)?.toLowerCase() ===
+                    'cell type',
                 strainSelect:
                     (getDropdownValue(TUTORIAL_TARGETS.singleCellStrainDropdown) || '') === 'acaA-',
                 strainBackToAX4:
@@ -126,6 +130,7 @@ const Tutorial = (): ReactElement => {
             (stepIndex === TUTORIAL_STEP.TIME_SERIES && !c.timeSeries) ||
             (stepIndex === TUTORIAL_STEP.GENE_SEARCH && !c.geneSearch) ||
             (stepIndex === TUTORIAL_STEP.COLOR_TIME && !c.colorTime) ||
+            (stepIndex === TUTORIAL_STEP.COLOR_CELL_TYPE && !c.colorCellType) ||
             (stepIndex === TUTORIAL_STEP.STRAIN_SELECT && !c.strainSelect) ||
             (stepIndex === TUTORIAL_STEP.STRAIN_BACK_TO_AX4 && !isStrainBackCompleted) ||
             (stepIndex === TUTORIAL_STEP.CLUSTERING && !c.spearmanSelect) ||

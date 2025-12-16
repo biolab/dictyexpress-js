@@ -169,11 +169,28 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Developmental Timing',
     },
-    // Step 7: Compare strains (interactive)
+    // Step 7: Color by Cell type (interactive)
     {
         target: TUTORIAL_TARGETS.singleCellModule,
         content: (
             <>
+                Now let's explore the different cell types in this dataset.
+                <br />
+                <br />
+                <b>Click the "Color by" dropdown and select "Cell type".</b>
+            </>
+        ),
+        title: 'Color by Cell Type',
+        spotlightClicks: true,
+    },
+    // Step 8: Compare strains (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                Notice how the prestalk cells shine brighter—they express <i>ecmA</i> strongly.
+                <br />
+                <br />
                 Let's examine the expression of <i>ecmA</i> in a knockout strain. In <i>acaA-</i>{' '}
                 cells, the gene encoding adenylyl cyclase A has been deleted, disrupting cAMP
                 signaling during aggregation.
@@ -185,7 +202,7 @@ export const tutorialSteps: Step[] = [
         title: 'Compare Strains',
         spotlightClicks: true,
     },
-    // Step 8: Mutant effect (interactive)
+    // Step 9: Mutant effect (interactive)
     {
         target: TUTORIAL_TARGETS.singleCellModule,
         content: (
@@ -200,7 +217,7 @@ export const tutorialSteps: Step[] = [
         title: 'Mutant Phenotype',
         spotlightClicks: true,
     },
-    // Step 9: Differential expression intro
+    // Step 10: Differential expression intro
     {
         target: TUTORIAL_TARGETS.differentialModule,
         content: (
@@ -215,7 +232,7 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Differential Expression',
     },
-    // Step 10: Select genes (interactive)
+    // Step 11: Select genes (interactive)
     {
         target: TUTORIAL_TARGETS.differentialModule,
         content: (
@@ -229,7 +246,7 @@ export const tutorialSteps: Step[] = [
         title: 'Select Prespore Genes',
         spotlightClicks: true,
     },
-    // Step 11: Review modal (interactive)
+    // Step 12: Review modal (interactive)
     {
         target: TUTORIAL_TARGETS.volcanoSelectionModal,
         content: (
@@ -244,7 +261,7 @@ export const tutorialSteps: Step[] = [
         title: 'Review Selection',
         spotlightClicks: true,
     },
-    // Step 12: Select all (interactive)
+    // Step 13: Select all (interactive)
     {
         target: TUTORIAL_TARGETS.volcanoSelectionModal,
         content: (
@@ -256,7 +273,7 @@ export const tutorialSteps: Step[] = [
         spotlightClicks: true,
         data: { placementKey: `${TUTORIAL_TARGETS.volcanoSelectionModal}:select-all` },
     },
-    // Step 13: Clustering (interactive)
+    // Step 14: Clustering (interactive)
     {
         target: TUTORIAL_TARGETS.clusteringModule,
         content: (
@@ -275,7 +292,7 @@ export const tutorialSteps: Step[] = [
         title: 'Hierarchical Clustering',
         spotlightClicks: true,
     },
-    // Step 14: Select cluster
+    // Step 15: Select cluster
     {
         target: TUTORIAL_TARGETS.clusteringModule,
         content: (
@@ -292,7 +309,7 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Select a Cluster',
     },
-    // Step 15: Cross-module analysis
+    // Step 16: Cross-module analysis
     {
         target: 'body',
         content: (
@@ -323,7 +340,7 @@ export const tutorialSteps: Step[] = [
         },
         data: { customOverlay: true },
     },
-    // Step 16: GO Enrichment
+    // Step 17: GO Enrichment
     {
         target: TUTORIAL_TARGETS.goEnrichmentModule,
         content: (
@@ -341,7 +358,7 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Gene Ontology Enrichment',
     },
-    // Step 17: Closing
+    // Step 18: Closing
     {
         target: 'body',
         content: (
