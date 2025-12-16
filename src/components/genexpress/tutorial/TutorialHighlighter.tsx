@@ -1,36 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTutorial } from './tutorialContext';
 import { TUTORIAL_TARGETS } from './tutorialSteps';
-import { TUTORIAL_STEP } from './tutorialUtils';
+import { TUTORIAL_STEP, DROPDOWN_STEP_CONFIG, DropdownStepConfig } from './tutorialUtils';
 import { DragOverlay, Cursor, SelectionBox, CustomOverlay } from './TutorialHighlighter.styles';
 
 const HIGHLIGHT_CLASS = 'tutorial-highlight-row';
 const MENU_HIGHLIGHT_CLASS = 'tutorial-highlight-menu-item';
-
-/** Configuration for dropdown highlighting per step */
-const DROPDOWN_HIGHLIGHT_CONFIG: Record<
-    number,
-    { selector: string; menuItemText: string; caseSensitive?: boolean }
-> = {
-    [TUTORIAL_STEP.COLOR_TIME]: {
-        selector: TUTORIAL_TARGETS.singleCellColorDropdown,
-        menuItemText: 'time',
-    },
-    [TUTORIAL_STEP.STRAIN_SELECT]: {
-        selector: TUTORIAL_TARGETS.singleCellStrainDropdown,
-        menuItemText: 'acaA-',
-        caseSensitive: true,
-    },
-    [TUTORIAL_STEP.STRAIN_BACK_TO_AX4]: {
-        selector: TUTORIAL_TARGETS.singleCellStrainDropdown,
-        menuItemText: 'AX4',
-        caseSensitive: true,
-    },
-    [TUTORIAL_STEP.CLUSTERING]: {
-        selector: TUTORIAL_TARGETS.clusteringDistanceMeasureDropdown,
-        menuItemText: 'spearman',
-    },
-};
 
 const TutorialHighlighter = (): JSX.Element | null => {
     const { isRunning, stepIndex } = useTutorial();
@@ -44,6 +19,11 @@ const TutorialHighlighter = (): JSX.Element | null => {
             el.classList.remove(HIGHLIGHT_CLASS, MENU_HIGHLIGHT_CLASS);
         });
         highlightedRef.current = [];
+    };
+
+    const resetDragOverlay = () => {
+        setShowDragAnimation(false);
+        setOverlayRect(null);
     };
 
     const addHighlight = (el: Element, cls = HIGHLIGHT_CLASS) => {
@@ -61,18 +41,14 @@ const TutorialHighlighter = (): JSX.Element | null => {
         }
 
         /** Highlight dropdown and corresponding menu item */
-        const highlightDropdown = (config: {
-            selector: string;
-            menuItemText: string;
-            caseSensitive?: boolean;
-        }) => {
+        const highlightDropdown = (config: DropdownStepConfig) => {
             const dropdown = document.querySelector(config.selector);
             if (dropdown) addHighlight(dropdown);
             document.querySelectorAll('.MuiMenuItem-root').forEach((item) => {
                 const itemText = item.textContent?.trim() || '';
                 const matches = config.caseSensitive
-                    ? itemText === config.menuItemText
-                    : itemText.toLowerCase() === config.menuItemText.toLowerCase();
+                    ? itemText === config.expectedValue
+                    : itemText.toLowerCase() === config.expectedValue.toLowerCase();
                 if (matches) addHighlight(item, MENU_HIGHLIGHT_CLASS);
             });
         };
@@ -88,7 +64,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
             });
 
             // Check if this step has dropdown highlighting config
-            const dropdownConfig = DROPDOWN_HIGHLIGHT_CONFIG[stepIndex];
+            const dropdownConfig = DROPDOWN_STEP_CONFIG[stepIndex];
             if (dropdownConfig) {
                 highlightDropdown(dropdownConfig);
                 return;
@@ -125,8 +101,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
                 }
 
                 case TUTORIAL_STEP.VOLCANO_MODAL: {
-                    setShowDragAnimation(false);
-                    setOverlayRect(null);
+                    resetDragOverlay();
                     const appendCheckbox = document.querySelector(
                         `${TUTORIAL_TARGETS.volcanoSelectionModal} input[name="append"]`,
                     );
@@ -137,8 +112,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
                 }
 
                 case TUTORIAL_STEP.SELECT_ALL:
-                    setShowDragAnimation(false);
-                    setOverlayRect(null);
+                    resetDragOverlay();
                     document
                         .querySelectorAll(`${TUTORIAL_TARGETS.volcanoSelectionModal} button`)
                         .forEach((btn) => {
@@ -150,8 +124,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
 
                 default:
                     cleanup();
-                    setShowDragAnimation(false);
-                    setOverlayRect(null);
+                    resetDragOverlay();
             }
         };
 
@@ -161,7 +134,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
             cleanup();
-            setShowDragAnimation(false);
+            resetDragOverlay();
         };
     }, [isRunning, stepIndex]);
 

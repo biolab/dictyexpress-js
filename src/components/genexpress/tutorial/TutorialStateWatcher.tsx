@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useTutorial } from './tutorialContext';
+import { TUTORIAL_TARGETS } from './tutorialSteps';
 import {
     TUTORIAL_STEP,
     getDropdownValue,
     DROPDOWN_STEP_CONFIG,
     DROPDOWN_STEPS,
+    checkDropdownValue,
 } from './tutorialUtils';
 import { RootState } from 'redux/rootReducer';
 
-const MODAL_SELECTOR = '[aria-labelledby="modalTitle"]';
 const ADVANCE_DELAY = 300;
 
 const TutorialStateWatcher = (): null => {
@@ -65,7 +66,7 @@ const TutorialStateWatcher = (): null => {
 
         const check = () => {
             const current = getDropdownValue(config.selector);
-            if (config.checkValue(current, initial)) {
+            if (checkDropdownValue(config, current, initial)) {
                 setTimeout(() => advanceFromStep(stepIndex), ADVANCE_DELAY);
             }
         };
@@ -113,9 +114,11 @@ const TutorialStateWatcher = (): null => {
             modalSteps.includes(prevStepIndex.current) &&
             stepIndex === TUTORIAL_STEP.VOLCANO_SELECT
         ) {
-            document.querySelectorAll(`${MODAL_SELECTOR} button`).forEach((btn) => {
-                if (btn.textContent?.trim() === 'Close') (btn as HTMLButtonElement).click();
-            });
+            document
+                .querySelectorAll(`${TUTORIAL_TARGETS.volcanoSelectionModal} button`)
+                .forEach((btn) => {
+                    if (btn.textContent?.trim() === 'Close') (btn as HTMLButtonElement).click();
+                });
         }
         prevStepIndex.current = stepIndex;
     }, [stepIndex]);
@@ -126,7 +129,7 @@ const TutorialStateWatcher = (): null => {
         if (!document.getElementById('modalTitle')) return;
 
         const checkbox = document.querySelector<HTMLInputElement>(
-            `${MODAL_SELECTOR} input[name="append"]`,
+            `${TUTORIAL_TARGETS.volcanoSelectionModal} input[name="append"]`,
         );
         appendWasCheckedOnEntry.current = checkbox?.checked ?? true;
 
@@ -134,7 +137,7 @@ const TutorialStateWatcher = (): null => {
 
         const interval = setInterval(() => {
             const cb = document.querySelector<HTMLInputElement>(
-                `${MODAL_SELECTOR} input[name="append"]`,
+                `${TUTORIAL_TARGETS.volcanoSelectionModal} input[name="append"]`,
             );
             if (cb && !cb.checked) {
                 clearInterval(interval);
