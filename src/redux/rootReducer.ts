@@ -18,6 +18,7 @@ import authentication from 'redux/stores/authentication';
 import differentialExpressions from 'redux/stores/differentialExpressions';
 import layouts from 'redux/stores/layouts';
 import gOEnrichment from 'redux/stores/gOEnrichment';
+import singleCellExpressions from 'redux/stores/singleCellExpressions';
 import { EMPTY_ARRAY } from 'components/genexpress/common/constants';
 
 const rootReducer = combineReducers({
@@ -29,6 +30,7 @@ const rootReducer = combineReducers({
     samplesExpressions,
     differentialExpressions,
     gOEnrichment,
+    singleCellExpressions,
     notifications,
 });
 

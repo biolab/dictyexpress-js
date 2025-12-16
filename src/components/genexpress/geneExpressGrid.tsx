@@ -11,6 +11,7 @@ import DifferentialExpressions from './modules/differentialExpressions/different
 import GOEnrichment from './modules/gOEnrichment/gOEnrichment';
 import Clustering from './modules/clustering/clustering';
 import GenesExpressions from './modules/genesExpressions/genesExpressions';
+import SingleCellExpressions from './modules/singleCellExpressions/singleCellExpressions';
 import { DictyUrlQueryParameter, LayoutBreakpoint, ModulesKeys } from './common/constants';
 import { ResponsiveGridLayoutContainer } from './geneExpressGrid.styles';
 import useBrowserVisibility from './common/useBrowserVisibility';
@@ -31,6 +32,7 @@ import {
     getIsAddingToBasket,
     getIsFetchingGenesMappings,
 } from 'redux/stores/timeSeries';
+import { getIsFetchingSingleCellExpressions } from 'redux/stores/singleCellExpressions';
 import { RootState } from 'redux/rootReducer';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -51,6 +53,9 @@ const mapStateToProps = (state: RootState) => {
         isLoggingOut: getIsLoggingOut(state.authentication),
         isFetchingGOEnrichmentJson: getIsFetchingGOEnrichmentJson(state.gOEnrichment),
         gOEnrichmentStatus: getGOEnrichmentStatus(state.gOEnrichment),
+        isFetchingSingleCellExpressions: getIsFetchingSingleCellExpressions(
+            state.singleCellExpressions,
+        ),
     };
 };
 
@@ -72,6 +77,7 @@ const GeneExpressGrid = ({
     isLoggingOut,
     isFetchingGOEnrichmentJson,
     gOEnrichmentStatus,
+    isFetchingSingleCellExpressions,
     connectedLayoutsChanged,
     connectedFetchAndSelectPredefinedGenes,
 }: PropsFromRedux): ReactElement => {
@@ -175,6 +181,14 @@ const GeneExpressGrid = ({
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
                         >
                             <Clustering />
+                        </DictyModule>
+                    </div>
+                    <div key={ModulesKeys.singleCellExpressions}>
+                        <DictyModule
+                            title="Single Cell Expression"
+                            isLoading={isFetchingSingleCellExpressions}
+                        >
+                            <SingleCellExpressions />
                         </DictyModule>
                     </div>
                 </ResponsiveGridLayout>
