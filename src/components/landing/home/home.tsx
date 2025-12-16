@@ -28,6 +28,10 @@ const Home = (): ReactElement => (
                         gene expression experiments in <i>Dictyostelium</i> by Baylor College of
                         Medicine.
                     </p>
+                    <p style={{ fontSize: '1.3rem' }}>
+                        This website is free and open to all users and there is no login
+                        requirement.
+                    </p>
                     <p>
                         <HomeRunDictyButton variant="outlined" role="button" name="enter-app">
                             <Link to="/bcm/">Run dictyExpress</Link>
