@@ -43,6 +43,8 @@ import { addSnackbar } from 'redux/stores/notifications';
 import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
 import { handleError } from 'utils/errorUtils';
 import { Gene } from 'redux/models/internal';
+import useReport from 'components/genexpress/common/reportBuilder/useReport';
+import { objectsArrayToTsv } from 'utils/reportUtils';
 
 const StyledDictySelect = styled(DictySelect)`
     min-width: 80px;
@@ -319,6 +321,44 @@ const SingleCellExpressions = ({
             setShowLegend(true);
         }
     }, [geneExpressionData.length, colorMode]);
+
+    useReport(
+        (processFile) => {
+            if (umapCoordinates.length === 0) {
+                return;
+            }
+
+            if (geneExpressionData.length > 0) {
+                const cellTable = umapCoordinates.map((cell, idx) => {
+                    const row: Record<string, string | number> = {
+                        cell_id: cell.tag,
+                        umap_x: cell.x,
+                        umap_y: cell.y,
+                        time: cell.time,
+                        cell_type: cell.cell_type,
+                    };
+                    for (const gene of geneExpressionData) {
+                        row[gene.geneName] = gene.expression[idx];
+                    }
+                    return row;
+                });
+                processFile(
+                    'Single Cell Expressions/cell_expressions.tsv',
+                    objectsArrayToTsv(cellTable),
+                    false,
+                );
+            }
+
+            if (chartRef.current != null) {
+                const pngDataUrl = chartRef.current.exportAsPNG();
+                if (pngDataUrl) {
+                    const base64Data = pngDataUrl.substring(pngDataUrl.indexOf(',') + 1);
+                    processFile('Single Cell Expressions/single_cell_umap.png', base64Data, true);
+                }
+            }
+        },
+        [umapCoordinates, geneExpressionData],
+    );
 
     /**
      * Handle strain selection change
