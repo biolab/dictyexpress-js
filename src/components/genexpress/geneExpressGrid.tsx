@@ -12,6 +12,7 @@ import GOEnrichment from './modules/gOEnrichment/gOEnrichment';
 import Clustering from './modules/clustering/clustering';
 import GenesExpressions from './modules/genesExpressions/genesExpressions';
 import SingleCellExpressions from './modules/singleCellExpressions/singleCellExpressions';
+import { TutorialProvider, Tutorial } from './tutorial';
 import { DictyUrlQueryParameter, LayoutBreakpoint, ModulesKeys } from './common/constants';
 import { ResponsiveGridLayoutContainer } from './geneExpressGrid.styles';
 import useBrowserVisibility from './common/useBrowserVisibility';
@@ -122,7 +123,8 @@ const GeneExpressGrid = ({
     };
 
     return (
-        <>
+        <TutorialProvider>
+            <Tutorial />
             <GenexpressAppBar isLoading={isLoggingOut} />
             <SnackbarNotifier />
             <ResponsiveGridLayoutContainer>
@@ -139,7 +141,10 @@ const GeneExpressGrid = ({
                     cols={defaultBreakpointCols}
                     onLayoutChange={handleOnLayoutChange}
                 >
-                    <div key={ModulesKeys.timeSeriesAndGeneSelector}>
+                    <div
+                        key={ModulesKeys.timeSeriesAndGeneSelector}
+                        data-tutorial="time-series-module"
+                    >
                         <DictyModule
                             title="Time series and Gene Selection"
                             isLoading={isFetchingTimeSeries || isAddingToBasket}
@@ -147,7 +152,7 @@ const GeneExpressGrid = ({
                             <TimeSeriesAndGeneSelector />
                         </DictyModule>
                     </div>
-                    <div key={ModulesKeys.expressionTimeCourses}>
+                    <div key={ModulesKeys.expressionTimeCourses} data-tutorial="expression-module">
                         <DictyModule
                             title="Expression Time Courses"
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
@@ -155,7 +160,10 @@ const GeneExpressGrid = ({
                             <GenesExpressions />
                         </DictyModule>
                     </div>
-                    <div key={ModulesKeys.differentialExpressions}>
+                    <div
+                        key={ModulesKeys.differentialExpressions}
+                        data-tutorial="differential-module"
+                    >
                         <DictyModule
                             title="Differential expressions"
                             isLoading={
@@ -166,7 +174,7 @@ const GeneExpressGrid = ({
                             <DifferentialExpressions />
                         </DictyModule>
                     </div>
-                    <div key={ModulesKeys.gOEnrichment}>
+                    <div key={ModulesKeys.gOEnrichment} data-tutorial="go-enrichment-module">
                         <DictyModule
                             title="Gene Ontology Enrichment"
                             isLoading={isFetchingGOEnrichmentJson}
@@ -175,7 +183,7 @@ const GeneExpressGrid = ({
                             <GOEnrichment />
                         </DictyModule>
                     </div>
-                    <div key={ModulesKeys.clustering}>
+                    <div key={ModulesKeys.clustering} data-tutorial="clustering-module">
                         <DictyModule
                             title="Hierarchical Clustering"
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
@@ -183,7 +191,7 @@ const GeneExpressGrid = ({
                             <Clustering />
                         </DictyModule>
                     </div>
-                    <div key={ModulesKeys.singleCellExpressions}>
+                    <div key={ModulesKeys.singleCellExpressions} data-tutorial="single-cell-module">
                         <DictyModule
                             title="Single Cell Expression"
                             isLoading={isFetchingSingleCellExpressions}
@@ -193,7 +201,7 @@ const GeneExpressGrid = ({
                     </div>
                 </ResponsiveGridLayout>
             </ResponsiveGridLayoutContainer>
-        </>
+        </TutorialProvider>
     );
 };
 

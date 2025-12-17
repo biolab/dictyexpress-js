@@ -234,6 +234,7 @@ Clustering was done on ${selectedGenes.length === 0 ? 'all genes' : `selected ge
                                     handleOnChange={(event: SelectChangeEvent<unknown>): void => {
                                         setDistanceMeasure(event.target.value as DistanceMeasure);
                                     }}
+                                    data-tutorial="clustering-distance-measure-dropdown"
                                 >
                                     {distanceMeasureOptions.map((distanceMeasureOption) => (
                                         <MenuItem

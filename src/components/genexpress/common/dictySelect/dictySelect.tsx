@@ -1,5 +1,5 @@
 import { FormControl, InputLabel, Select, SelectProps } from '@mui/material';
-import React, { ReactElement, ReactNode } from 'react';
+import { ReactElement, ReactNode } from 'react';
 import { generateRandomString } from 'utils/stringUtils';
 
 type DictySelectProps = {
@@ -9,6 +9,7 @@ type DictySelectProps = {
     disabled?: boolean;
     handleOnChange: SelectProps['onChange'];
     className?: string;
+    'data-tutorial'?: string;
 };
 
 const DictySelect = ({
@@ -18,11 +19,17 @@ const DictySelect = ({
     handleOnChange,
     disabled,
     className,
+    'data-tutorial': dataTutorial,
 }: DictySelectProps): ReactElement => {
     const labelId = `${generateRandomString(5)}Label`;
 
     return (
-        <FormControl variant="outlined" className={className}>
+        <FormControl
+            variant="outlined"
+            className={className}
+            data-tutorial={dataTutorial}
+            disabled={disabled}
+        >
             <InputLabel id={labelId}>{label}</InputLabel>
             <Select
                 labelId={labelId}

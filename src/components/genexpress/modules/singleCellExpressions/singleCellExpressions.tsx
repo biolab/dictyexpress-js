@@ -34,7 +34,7 @@ import {
 } from './singleCellExpressions.styles';
 import GeneDataStatusModal from './geneDataStatusModal/geneDataStatusModal';
 import { RootState } from 'redux/rootReducer';
-import { getSelectedGenes } from 'redux/stores/genes';
+import { getSelectedGenes, getHighlightedGenes } from 'redux/stores/genes';
 import {
     singleCellExpressionsFetchStarted,
     singleCellExpressionsFetchEnded,
@@ -55,6 +55,7 @@ type SingleCellExpressionsProps = Record<string, never>;
 
 const mapStateToProps = (state: RootState) => ({
     selectedGenes: getSelectedGenes(state.genes),
+    highlightedGenes: getHighlightedGenes(state.genes),
 });
 
 const connector = connect(mapStateToProps, {
@@ -67,9 +68,12 @@ type CombinedProps = SingleCellExpressionsProps & PropsFromRedux;
 
 const SingleCellExpressions = ({
     selectedGenes,
+    highlightedGenes,
     connectedSingleCellExpressionsFetchStarted,
     connectedSingleCellExpressionsFetchEnded,
 }: CombinedProps): ReactElement => {
+    // Use highlighted genes when available, otherwise use all selected genes
+    const genesToDisplay = highlightedGenes.length > 0 ? highlightedGenes : selectedGenes;
     const chartRef = useRef<UmapPlotHandle>(null);
     // We need a request ID to avoid race conditions and showing stale data.
     const geneExpressionRequestIdRef = useRef(0);
@@ -184,7 +188,8 @@ const SingleCellExpressions = ({
     ]);
 
     /**
-     * Load and aggregate gene expression data whenever selected genes change.
+     * Load and aggregate gene expression data whenever displayed genes change.
+     * Uses highlighted genes when available, otherwise uses all selected genes.
      */
     useEffect(() => {
         if (!datasetInfo) {
@@ -193,7 +198,7 @@ const SingleCellExpressions = ({
 
         const requestId = ++geneExpressionRequestIdRef.current;
 
-        if (selectedGenes.length === 0) {
+        if (genesToDisplay.length === 0) {
             setColorValues(undefined);
             setGeneExpressionData([]);
             setLoadingGeneExpression(false);
@@ -207,7 +212,7 @@ const SingleCellExpressions = ({
 
                 const geneIndices: number[] = [];
 
-                for (const gene of selectedGenes) {
+                for (const gene of genesToDisplay) {
                     let idx = -1;
 
                     if (idx === -1 && gene.feature_id) {
@@ -293,7 +298,7 @@ const SingleCellExpressions = ({
 
         void loadGeneExpression();
     }, [
-        selectedGenes,
+        genesToDisplay,
         geneNames,
         geneSymbols,
         datasetInfo,
@@ -337,7 +342,7 @@ const SingleCellExpressions = ({
         const withData: Gene[] = [];
         const withoutData: Gene[] = [];
 
-        for (const gene of selectedGenes) {
+        for (const gene of genesToDisplay) {
             if (geneNamesWithData.has(gene.feature_id)) {
                 withData.push(gene);
             } else {
@@ -346,7 +351,7 @@ const SingleCellExpressions = ({
         }
 
         return { genesWithData: withData, genesWithoutData: withoutData };
-    }, [selectedGenes, geneExpressionData]);
+    }, [genesToDisplay, geneExpressionData]);
 
     // Calculate number of visible toggles
     const visibleToggleCount = useMemo(() => {
@@ -384,6 +389,7 @@ const SingleCellExpressions = ({
                         label="Strain"
                         value={selectedStrain}
                         handleOnChange={handleStrainChange}
+                        data-tutorial="single-cell-strain-dropdown"
                     >
                         {availableStrains.map((strain) => (
                             <MenuItem key={strain} value={strain}>
@@ -397,6 +403,7 @@ const SingleCellExpressions = ({
                         value={selectedStrain}
                         handleOnChange={handleStrainChange}
                         disabled
+                        data-tutorial="single-cell-strain-dropdown"
                     >
                         <MenuItem value={selectedStrain}>{selectedStrain}</MenuItem>
                     </StyledDictySelect>
@@ -408,6 +415,7 @@ const SingleCellExpressions = ({
                     handleOnChange={(e: SelectChangeEvent<unknown>) =>
                         setColorMode(e.target.value as 'expression' | 'time' | 'cell_type')
                     }
+                    data-tutorial="single-cell-color-dropdown"
                 >
                     <MenuItem value="expression">Expression</MenuItem>
                     <MenuItem value="time">Time</MenuItem>
@@ -488,7 +496,7 @@ const SingleCellExpressions = ({
                 showLegend={showLegend}
                 useAlpha={useAlpha}
                 geneExpressionData={geneExpressionData}
-                totalGenesSelected={selectedGenes.length}
+                totalGenesSelected={genesToDisplay.length}
                 fixedBounds={referenceBounds}
                 ref={chartRef}
             />
@@ -497,7 +505,7 @@ const SingleCellExpressions = ({
                 <Button size="small" style={{ pointerEvents: 'none' }}>
                     {cellCountDisplay}
                 </Button>
-                {selectedGenes.length > 0 && (
+                {genesToDisplay.length > 0 && (
                     <>
                         <span>•</span>
                         <Button
@@ -505,8 +513,9 @@ const SingleCellExpressions = ({
                             onClick={() => setIsGeneDataModalOpen(true)}
                             disabled={loadingGeneExpression}
                         >
-                            {shownGenesCount} / {selectedGenes.length} gene
-                            {selectedGenes.length !== 1 ? 's' : ''} with data
+                            {shownGenesCount} / {genesToDisplay.length}{' '}
+                            {highlightedGenes.length > 0 ? 'highlighted ' : ''}gene
+                            {genesToDisplay.length !== 1 ? 's' : ''} with data
                         </Button>
                     </>
                 )}
