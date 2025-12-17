@@ -1,9 +1,10 @@
 // Value can be null or valid endpoint URL
 // Default: domain/api
-// Default: domain/api
 API_URL = null;
+// Default: domain/saml-auth
 SAML_AUTH_URL = null;
-WEBSOCKET_URL = "wss://app.genialis.com/ws/v2"
+// Default: domain/ws
+WEBSOCKET_URL = null;
 
 // Default: bcm
 COMMUNITY_SLUG = 'bcm';
