@@ -27,6 +27,30 @@ export const ModalHeader = styled.h3`
 export const ModalBody = styled.div`
     position: relative;
     padding: 15px;
+    overflow-y: auto;
+    flex: 1;
+
+    p {
+        font-size: 1rem;
+        line-height: 1.5;
+        margin: 0 0 12px;
+        // text-indent: 1.5em;
+
+        // &:first-of-type {
+        //     text-indent: 0;
+        // }
+    }
+
+    ul {
+        margin: 0 0 12px;
+        padding-left: 22px;
+    }
+
+    li {
+        font-size: 1rem;
+        line-height: 1.5;
+        margin: 0 0 6px;
+    }
 `;
 
 export const ModalFooter = styled.div`
