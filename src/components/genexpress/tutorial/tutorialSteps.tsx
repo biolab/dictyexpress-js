@@ -138,7 +138,7 @@ export const tutorialSteps: Step[] = [
                 cell type and the mRNA abundance of the selected gene.
             </>
         ),
-        title: 'Single Cell Expression',
+        title: 'Single-Cell Expression',
     },
     // Step 5: Color by time (interactive)
     {
