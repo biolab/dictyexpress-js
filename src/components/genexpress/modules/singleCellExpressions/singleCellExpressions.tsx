@@ -1,13 +1,6 @@
 import { ReactElement, useMemo, useRef, useEffect, useState } from 'react';
 import { connect, ConnectedProps, useDispatch } from 'react-redux';
-import {
-    MenuItem,
-    SelectChangeEvent,
-    styled,
-    FormControlLabel,
-    Switch,
-    Button,
-} from '@mui/material';
+import { MenuItem, SelectChangeEvent, FormControlLabel, Switch, Button } from '@mui/material';
 import UmapPlot, { UmapDataPoint, UmapPlotHandle, GeneExpressionData } from './umapPlot/umapPlot';
 import {
     loadUMAPCoordinates,
@@ -28,8 +21,7 @@ import {
     SingleCellExpressionsContainer,
     ErrorMessage,
     LoadingMessage,
-    ControlsRow,
-    LegendToggleContainer,
+    SingleCellExpressionsControls,
     InfoRow,
 } from './singleCellExpressions.styles';
 import GeneDataStatusModal from './geneDataStatusModal/geneDataStatusModal';
@@ -45,11 +37,8 @@ import { handleError } from 'utils/errorUtils';
 import { Gene } from 'redux/models/internal';
 import useReport from 'components/genexpress/common/reportBuilder/useReport';
 import { objectsArrayToTsv } from 'utils/reportUtils';
-
-const StyledDictySelect = styled(DictySelect)`
-    min-width: 80px;
-    max-width: 90px;
-`;
+import useSize from 'components/genexpress/common/useSize';
+import HiddenControlsIndicator from 'components/genexpress/common/hiddenControlsIndicator/hiddenControlsIndicator';
 
 const DEFAULT_STRAIN = 'AX4';
 
@@ -77,6 +66,8 @@ const SingleCellExpressions = ({
     // Use highlighted genes when available, otherwise use all selected genes
     const genesToDisplay = highlightedGenes.length > 0 ? highlightedGenes : selectedGenes;
     const chartRef = useRef<UmapPlotHandle>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const { width } = useSize(containerRef);
     // We need a request ID to avoid race conditions and showing stale data.
     const geneExpressionRequestIdRef = useRef(0);
     const dispatch = useDispatch();
@@ -115,6 +106,10 @@ const SingleCellExpressions = ({
     const [showLegend, setShowLegend] = useState(true);
     const [useAlpha, setUseAlpha] = useState(true);
     const [isGeneDataModalOpen, setIsGeneDataModalOpen] = useState(false);
+    const [displayControls, setDisplayControls] = useState({
+        firstLevel: true,
+        secondLevel: true,
+    });
 
     /**
      * Load available strains on mount
@@ -311,16 +306,32 @@ const SingleCellExpressions = ({
         connectedSingleCellExpressionsFetchEnded,
     ]);
 
-    // /**
-    //  * Auto-switch from expression mode when no genes with data
-    //  */
     useEffect(() => {
-        if (geneExpressionData.length === 0 && colorMode === 'expression') {
-            setShowLegend(false);
-        } else {
-            setShowLegend(true);
-        }
+        setShowLegend(!(geneExpressionData.length === 0 && colorMode === 'expression'));
     }, [geneExpressionData.length, colorMode]);
+
+    useEffect(() => {
+        if (width == null) return;
+        const availableWidth = width - 120;
+        const genesWithData = geneExpressionData.length;
+
+        const showTransform = genesWithData > 0 && (colorMode === 'expression' || useAlpha);
+        const showAggregation = genesWithData > 1 && (colorMode === 'expression' || useAlpha);
+        const showExpressionToggle = genesWithData > 0 && colorMode !== 'expression';
+
+        const baseWidth = 160; // Color by + Legend toggle
+        const expressionToggleWidth = showExpressionToggle ? 90 : 0;
+        const transformWidth = showTransform ? 90 : 0;
+        const aggregationWidth = showAggregation ? 90 : 0;
+
+        const firstLevelWidth = baseWidth + expressionToggleWidth;
+        const secondLevelWidth = firstLevelWidth + transformWidth + aggregationWidth;
+
+        setDisplayControls({
+            firstLevel: availableWidth > firstLevelWidth,
+            secondLevel: availableWidth > secondLevelWidth,
+        });
+    }, [width, geneExpressionData.length, colorMode, useAlpha]);
 
     useReport(
         (processFile) => {
@@ -393,19 +404,10 @@ const SingleCellExpressions = ({
         return { genesWithData: withData, genesWithoutData: withoutData };
     }, [genesToDisplay, geneExpressionData]);
 
-    // Calculate number of visible toggles
-    const visibleToggleCount = useMemo(() => {
-        let count = 1; // Legend toggle is always visible
-        if (shownGenesCount > 0 && colorMode !== 'expression') {
-            count++; // Expression toggle is visible
-        }
-        return count;
-    }, [shownGenesCount, colorMode]);
-
     // Show error state
     if (error) {
         return (
-            <SingleCellExpressionsContainer>
+            <SingleCellExpressionsContainer ref={containerRef}>
                 <ErrorMessage>{error}</ErrorMessage>
             </SingleCellExpressionsContainer>
         );
@@ -414,7 +416,7 @@ const SingleCellExpressions = ({
     // Show empty state only on initial load
     if (umapCoordinates.length === 0 && isInitialLoad) {
         return (
-            <SingleCellExpressionsContainer>
+            <SingleCellExpressionsContainer ref={containerRef}>
                 <LoadingMessage>Loading single-cell data...</LoadingMessage>
             </SingleCellExpressionsContainer>
         );
@@ -422,10 +424,10 @@ const SingleCellExpressions = ({
 
     // Main view - always show content with loading bar in header
     return (
-        <SingleCellExpressionsContainer>
-            <ControlsRow $toggleCount={visibleToggleCount}>
+        <SingleCellExpressionsContainer ref={containerRef}>
+            <SingleCellExpressionsControls>
                 {availableStrains.length > 1 ? (
-                    <StyledDictySelect
+                    <DictySelect
                         label="Strain"
                         value={selectedStrain}
                         handleOnChange={handleStrainChange}
@@ -436,9 +438,9 @@ const SingleCellExpressions = ({
                                 {strain}
                             </MenuItem>
                         ))}
-                    </StyledDictySelect>
+                    </DictySelect>
                 ) : (
-                    <StyledDictySelect
+                    <DictySelect
                         label="Strain"
                         value={selectedStrain}
                         handleOnChange={handleStrainChange}
@@ -446,10 +448,10 @@ const SingleCellExpressions = ({
                         data-tutorial="single-cell-strain-dropdown"
                     >
                         <MenuItem value={selectedStrain}>{selectedStrain}</MenuItem>
-                    </StyledDictySelect>
+                    </DictySelect>
                 )}
 
-                <StyledDictySelect
+                <DictySelect
                     label="Color by"
                     value={colorMode}
                     handleOnChange={(e: SelectChangeEvent<unknown>) =>
@@ -460,11 +462,12 @@ const SingleCellExpressions = ({
                     <MenuItem value="expression">Expression</MenuItem>
                     <MenuItem value="time">Time</MenuItem>
                     <MenuItem value="cell_type">Cell Type</MenuItem>
-                </StyledDictySelect>
+                </DictySelect>
 
-                {shownGenesCount > 0 && (colorMode === 'expression' || useAlpha) && (
-                    <>
-                        <StyledDictySelect
+                {displayControls.secondLevel &&
+                    shownGenesCount > 0 &&
+                    (colorMode === 'expression' || useAlpha) && (
+                        <DictySelect
                             label="Transform"
                             value={transformMode}
                             handleOnChange={(e: SelectChangeEvent<unknown>) =>
@@ -473,29 +476,31 @@ const SingleCellExpressions = ({
                         >
                             <MenuItem value="linear">Linear</MenuItem>
                             <MenuItem value="log1p">Log1p</MenuItem>
-                        </StyledDictySelect>
+                        </DictySelect>
+                    )}
 
-                        {shownGenesCount > 1 && (
-                            <StyledDictySelect
-                                label="Aggregation"
-                                value={aggregationMode}
-                                handleOnChange={(e: SelectChangeEvent<unknown>) =>
-                                    setAggregationMode(
-                                        e.target.value as 'average' | 'sum' | 'min' | 'max',
-                                    )
-                                }
-                            >
-                                <MenuItem value="average">Average</MenuItem>
-                                <MenuItem value="sum">Sum</MenuItem>
-                                <MenuItem value="min">Min</MenuItem>
-                                <MenuItem value="max">Max</MenuItem>
-                            </StyledDictySelect>
-                        )}
-                    </>
-                )}
+                {displayControls.secondLevel &&
+                    shownGenesCount > 1 &&
+                    (colorMode === 'expression' || useAlpha) && (
+                        <DictySelect
+                            label="Aggregation"
+                            value={aggregationMode}
+                            handleOnChange={(e: SelectChangeEvent<unknown>) =>
+                                setAggregationMode(
+                                    e.target.value as 'average' | 'sum' | 'min' | 'max',
+                                )
+                            }
+                        >
+                            <MenuItem value="average">Average</MenuItem>
+                            <MenuItem value="sum">Sum</MenuItem>
+                            <MenuItem value="min">Min</MenuItem>
+                            <MenuItem value="max">Max</MenuItem>
+                        </DictySelect>
+                    )}
 
-                <LegendToggleContainer>
-                    {shownGenesCount > 0 && colorMode !== 'expression' && (
+                {displayControls.firstLevel &&
+                    shownGenesCount > 0 &&
+                    colorMode !== 'expression' && (
                         <FormControlLabel
                             control={
                                 <Switch
@@ -510,6 +515,7 @@ const SingleCellExpressions = ({
                             labelPlacement="top"
                         />
                     )}
+                {displayControls.firstLevel && (
                     <FormControlLabel
                         control={
                             <Switch
@@ -524,8 +530,9 @@ const SingleCellExpressions = ({
                         label="Legend"
                         labelPlacement="top"
                     />
-                </LegendToggleContainer>
-            </ControlsRow>
+                )}
+                {!displayControls.secondLevel && <HiddenControlsIndicator />}
+            </SingleCellExpressionsControls>
 
             <UmapPlot
                 data={umapCoordinates}
