@@ -9,6 +9,7 @@ export const DifferentialExpressionsContainer = styled.div`
 `;
 
 export const DifferentialExpressionsControls = styled.div`
+    position: relative;
     display: flex;
     flex-flow: row nowrap;
     align-items: center;

@@ -12,6 +12,7 @@ import {
     Tooltip,
 } from '@mui/material';
 import { SwapHoriz } from '@mui/icons-material';
+import HiddenControlsIndicator from '../../common/hiddenControlsIndicator/hiddenControlsIndicator';
 import { ChartHandle } from '../../common/chart/chart';
 import DifferentialExpressionsVolcanoPlot from './differentialExpressionsVolcanoPlot';
 import {
@@ -192,8 +193,8 @@ const DifferentialExpressions = ({
         }
         const availableWidth = width - minSelectWidth;
         setDisplayThresholdControls({
-            firstLevel: availableWidth > 348, // 2 * FormControl.offsetWidth(135) + FormControlLabel.offsetWidth(78)
-            secondLevel: availableWidth > 666, // 4 * FormControl.offsetWidth(135) + FormControlLabel.offsetWidth(78) + 2 * swap icon width(24)
+            firstLevel: availableWidth > 372, // 2 * FormControl.offsetWidth(135) + FormControlLabel.offsetWidth(78) + hint icon width(24)
+            secondLevel: availableWidth > 690, // 4 * FormControl.offsetWidth(135) + FormControlLabel.offsetWidth(78) + 2 * swap icon width(24) + hint icon width(24)
         });
     }, [width]);
 
@@ -420,6 +421,9 @@ positives.
                                 />
                             )}
                         </ThresholdFormControlsContainer>
+                    )}
+                    {volcanoPoints.length > 0 && !displayThresholdControls.secondLevel && (
+                        <HiddenControlsIndicator />
                     )}
                 </DifferentialExpressionsControls>
                 {selectedDifferentialExpression != null && disableSelection && (
