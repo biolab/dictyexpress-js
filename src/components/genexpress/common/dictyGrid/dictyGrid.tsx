@@ -11,7 +11,7 @@ import {
 } from 'ag-grid-community';
 import _ from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
-import { DictyGridContainer, FilterTextField, GridWrapper } from './dictyGrid.styles';
+import { DictyGridContainer, FilterTextField, GridWrapper, ScrollShadow } from './dictyGrid.styles';
 
 export type DictyGridProps<T> = {
     hideFilter?: boolean;
@@ -63,6 +63,14 @@ const DictyGrid = <T,>({
     const [filter, setFilter] = useState<string>('');
     const gridApi = useRef<GridApi | null>(null);
     const [gridKey, setGridKey] = useState(uuidv4());
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const [shadows, setShadows] = useState({
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+        headerHeight: 0,
+    });
 
     const setOverlay = useCallback(() => {
         gridApi.current?.setGridOption('loading', isFetching);
@@ -135,6 +143,24 @@ const DictyGrid = <T,>({
         setSelectedData(selectedData);
     }, [selectedData, setSelectedData]);
 
+    const updateScrollShadows = useCallback(() => {
+        const el = (s: string) => wrapperRef.current?.querySelector(s) as HTMLElement | null;
+        const headerHeight = el('.ag-header')?.offsetHeight ?? 0;
+        const vp = el('.ag-body-viewport');
+        const hVp = el('.ag-center-cols-viewport');
+
+        const up = (vp?.scrollTop ?? 0) > 0;
+        const down = vp ? vp.scrollTop + vp.clientHeight < vp.scrollHeight - 1 : false;
+        const left = (hVp?.scrollLeft ?? 0) > 0;
+        const right = hVp ? hVp.scrollLeft + hVp.clientWidth < hVp.scrollWidth - 1 : false;
+
+        setShadows((prev) =>
+            prev.up !== up || prev.down !== down || prev.left !== left || prev.right !== right || prev.headerHeight !== headerHeight
+                ? { up, down, left, right, headerHeight }
+                : prev,
+        );
+    }, []);
+
     const handleOnGridReady = (params: GridReadyEvent): void => {
         gridApi.current = params.api;
 
@@ -142,11 +168,20 @@ const DictyGrid = <T,>({
 
         setSelectedData(selectedData);
 
+        // Set up scroll shadow tracking (vertical + horizontal)
+        const vp = wrapperRef.current?.querySelector('.ag-body-viewport');
+        const hVp = wrapperRef.current?.querySelector('.ag-center-cols-viewport');
+        vp?.addEventListener('scroll', updateScrollShadows);
+        hVp?.addEventListener('scroll', updateScrollShadows);
+        updateScrollShadows();
+
         onReady?.();
     };
 
     const handleOnRendered = (): void => {
         sizeColumns();
+        // Update shadows after content renders
+        setTimeout(updateScrollShadows, 100);
     };
 
     const handleOnGridSizeChanged = (): void => {
@@ -179,6 +214,7 @@ const DictyGrid = <T,>({
                 />
             )}
             <GridWrapper
+                ref={wrapperRef}
                 className="ag-theme-balham"
                 $suppressHorizontalScroll={!disableSizeColumnsToFit}
             >
@@ -211,6 +247,10 @@ const DictyGrid = <T,>({
                     rowData={data}
                     quickFilterText={filter}
                 />
+                <ScrollShadow $dir="top" $visible={shadows.up} $offset={shadows.headerHeight} />
+                <ScrollShadow $dir="bottom" $visible={shadows.down} />
+                <ScrollShadow $dir="left" $visible={shadows.left} $offset={shadows.headerHeight} />
+                <ScrollShadow $dir="right" $visible={shadows.right} $offset={shadows.headerHeight} />
             </GridWrapper>
         </DictyGridContainer>
     );
