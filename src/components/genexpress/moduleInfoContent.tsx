@@ -101,7 +101,7 @@ export const goEnrichmentInfo: ReactNode = (
         </p>
         <ul>
             <li>Click a term row to collapse/expand children in tree view.</li>
-            <li>Click Flat/Hierarchy to toggle between views.</li>
+            <li>Toggle the Hierarchy switch to change between tree and flat views.</li>
             <li>
                 Click the number in the N column to see associated genes and add them to your list.
             </li>
@@ -167,6 +167,7 @@ export const singleCellInfo: ReactNode = (
             <li>Choose Color by: Expression (gene intensity), Time (0–20 hr), or Cell type.</li>
             <li>When a gene is selected, cells expressing it appear at higher color intensity.</li>
             <li>Toggle Legend for color interpretation.</li>
+            <li>Zoom in and zoom out using the scroll wheel. Double-click on the plot to reset the view.</li>
         </ul>
         <p>
             <b>Contact:</b> <a href="mailto:gadi@bcm.edu">gadi@bcm.edu</a> for questions. Additional

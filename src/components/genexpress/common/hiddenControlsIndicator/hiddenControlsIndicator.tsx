@@ -7,7 +7,7 @@ import { HiddenControlsIndicatorWrapper, EllipsisText } from './hiddenControlsIn
  * On hover, shows a tooltip prompting the user to resize.
  */
 const HiddenControlsIndicator = (): ReactElement => (
-    <Tooltip title="Resize module to see more controls">
+    <Tooltip title="Expand module to see more controls">
         <HiddenControlsIndicatorWrapper>
             <EllipsisText>...</EllipsisText>
         </HiddenControlsIndicatorWrapper>

@@ -122,18 +122,29 @@ describe('gOEnrichment', () => {
             expect(container.querySelector('.ag-cell svg')).toBeInTheDocument();
         });
 
-        it('should switch between flat and tree view when user clicks "Flat"/"Hierarchy" button', async () => {
-            fireEvent.click(screen.getByText('Flat'));
+        it('should switch between flat and tree view when user toggles the view switch', async () => {
+            const viewToggle = screen.getByLabelText('Toggle between Hierarchy and Flat view', {
+                selector: 'input[type="checkbox"]',
+            }) as HTMLInputElement;
+
+            // Initially unchecked (tree view / Hierarchy is default, switch to right = Flat)
+            expect(viewToggle).not.toBeChecked();
+
+            // Check to switch to flat view
+            fireEvent.click(viewToggle);
 
             await waitFor(() => {
                 expect(container.querySelector('.ag-cell svg')).not.toBeInTheDocument();
             });
+            expect(viewToggle).toBeChecked();
 
-            fireEvent.click(screen.getByText('Hierarchy'));
+            // Uncheck to switch back to tree view
+            fireEvent.click(viewToggle);
 
             await waitFor(() => {
                 expect(container.querySelector('.ag-cell svg')).toBeInTheDocument();
             });
+            expect(viewToggle).not.toBeChecked();
         });
 
         it('should switch to flat view when user clicks any sort button (except term)', async () => {
