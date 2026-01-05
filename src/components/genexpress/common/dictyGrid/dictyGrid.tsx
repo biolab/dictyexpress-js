@@ -155,7 +155,11 @@ const DictyGrid = <T,>({
         const right = hVp ? hVp.scrollLeft + hVp.clientWidth < hVp.scrollWidth - 1 : false;
 
         setShadows((prev) =>
-            prev.up !== up || prev.down !== down || prev.left !== left || prev.right !== right || prev.headerHeight !== headerHeight
+            prev.up !== up ||
+            prev.down !== down ||
+            prev.left !== left ||
+            prev.right !== right ||
+            prev.headerHeight !== headerHeight
                 ? { up, down, left, right, headerHeight }
                 : prev,
         );
@@ -250,7 +254,11 @@ const DictyGrid = <T,>({
                 <ScrollShadow $dir="top" $visible={shadows.up} $offset={shadows.headerHeight} />
                 <ScrollShadow $dir="bottom" $visible={shadows.down} />
                 <ScrollShadow $dir="left" $visible={shadows.left} $offset={shadows.headerHeight} />
-                <ScrollShadow $dir="right" $visible={shadows.right} $offset={shadows.headerHeight} />
+                <ScrollShadow
+                    $dir="right"
+                    $visible={shadows.right}
+                    $offset={shadows.headerHeight}
+                />
             </GridWrapper>
         </DictyGridContainer>
     );

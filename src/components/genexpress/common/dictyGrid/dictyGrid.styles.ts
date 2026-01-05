@@ -48,14 +48,18 @@ export const ScrollShadow = styled.div<{ $dir: ShadowDir; $visible: boolean; $of
     z-index: 10;
     transition: opacity 0.2s;
     opacity: ${(p) => (p.$visible ? 1 : 0)};
-    background: linear-gradient(${(p) => gradients[p.$dir]}, rgba(0, 0, 0, 0.08) 0%, transparent 100%);
+    background: linear-gradient(
+        ${(p) => gradients[p.$dir]},
+        rgba(0, 0, 0, 0.08) 0%,
+        transparent 100%
+    );
     ${(p) =>
         p.$dir === 'top' || p.$dir === 'bottom'
             ? css`
                   left: 0;
                   right: 0;
                   height: 16px;
-                  ${p.$dir}: ${p.$dir === 'top' ? p.$offset ?? 0 : 0}px;
+                  ${p.$dir}: ${p.$dir === 'top' ? (p.$offset ?? 0) : 0}px;
               `
             : css`
                   top: ${p.$offset ?? 0}px;

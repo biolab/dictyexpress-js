@@ -167,7 +167,10 @@ export const singleCellInfo: ReactNode = (
             <li>Choose Color by: Expression (gene intensity), Time (0–20 hr), or Cell type.</li>
             <li>When a gene is selected, cells expressing it appear at higher color intensity.</li>
             <li>Toggle Legend for color interpretation.</li>
-            <li>Zoom in and zoom out using the scroll wheel. Double-click on the plot to reset the view.</li>
+            <li>
+                Zoom in and zoom out using the scroll wheel. Double-click on the plot to reset the
+                view.
+            </li>
         </ul>
         <p>
             <b>Contact:</b> <a href="mailto:gadi@bcm.edu">gadi@bcm.edu</a> for questions. Additional

@@ -24,4 +24,3 @@ export const EllipsisText = styled.span`
         color: ${({ theme }) => theme.palette.grey[700]};
     }
 `;
-

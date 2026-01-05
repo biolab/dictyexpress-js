@@ -15,4 +15,3 @@ const HiddenControlsIndicator = (): ReactElement => (
 );
 
 export default HiddenControlsIndicator;
-

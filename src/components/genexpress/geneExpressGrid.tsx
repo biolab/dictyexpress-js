@@ -1,5 +1,4 @@
 import { ReactElement, useEffect } from 'react';
-import type { ComponentType } from 'react';
 import { Layouts, Responsive, WidthProvider } from 'react-grid-layout';
 import { connect, ConnectedProps, useDispatch } from 'react-redux';
 import _ from 'lodash';
@@ -17,6 +16,14 @@ import { TutorialProvider, Tutorial } from './tutorial';
 import { DictyUrlQueryParameter, LayoutBreakpoint, ModulesKeys } from './common/constants';
 import { ResponsiveGridLayoutContainer } from './geneExpressGrid.styles';
 import useBrowserVisibility from './common/useBrowserVisibility';
+import {
+    timeSeriesInfo,
+    expressionTimeCoursesInfo,
+    differentialExpressionsInfo,
+    goEnrichmentInfo,
+    clusteringInfo,
+    singleCellInfo,
+} from './moduleInfoContent';
 import { getUrlQueryParameter } from 'utils/url';
 import { loadBookmarkedState } from 'managers/bookmarkStateManager';
 import { appFocused, appStarted, fetchAndSelectPredefinedGenes } from 'redux/epics/epicsActions';
@@ -36,17 +43,8 @@ import {
 } from 'redux/stores/timeSeries';
 import { getIsFetchingSingleCellExpressions } from 'redux/stores/singleCellExpressions';
 import { RootState } from 'redux/rootReducer';
-import {
-    timeSeriesInfo,
-    expressionTimeCoursesInfo,
-    differentialExpressionsInfo,
-    goEnrichmentInfo,
-    clusteringInfo,
-    singleCellInfo,
-} from './moduleInfoContent';
 
-// Workaround for a ReactNode type mismatch between transitive @types/react deps.
-const ResponsiveGridLayout = WidthProvider(Responsive) as unknown as ComponentType<any>;
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const mapStateToProps = (state: RootState) => {
     return {

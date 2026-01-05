@@ -371,17 +371,32 @@ A list of all gene associations for each term is available in a separate file - 
                         </GOEnrichmentControl>
                         {gOEnrichmentRows.length > 0 && (
                             <GOEnrichmentControl>
-                                <Tooltip title={treeView ? "Toggle to view terms in a sortable grid" : "Toggle to view terms in a hierarchical tree"}>
+                                <Tooltip
+                                    title={
+                                        treeView
+                                            ? 'Toggle to view terms in a sortable grid'
+                                            : 'Toggle to view terms in a hierarchical tree'
+                                    }
+                                >
                                     <ViewToggleContainer>
                                         <ViewToggleLabels>
-                                            <ViewToggleLabel $isActive={treeView}>Hierarchy</ViewToggleLabel>
-                                            <ViewToggleLabel $isActive={!treeView}>Flat</ViewToggleLabel>
+                                            <ViewToggleLabel $isActive={treeView}>
+                                                Hierarchy
+                                            </ViewToggleLabel>
+                                            <ViewToggleLabel $isActive={!treeView}>
+                                                Flat
+                                            </ViewToggleLabel>
                                         </ViewToggleLabels>
                                         <DarkSwitch
                                             checked={!treeView}
-                                            onChange={(event): void => setTreeView(!event.target.checked)}
+                                            onChange={(event): void =>
+                                                setTreeView(!event.target.checked)
+                                            }
                                             size="small"
-                                            inputProps={{ 'aria-label': 'Toggle between Hierarchy and Flat view' }}
+                                            inputProps={{
+                                                'aria-label':
+                                                    'Toggle between Hierarchy and Flat view',
+                                            }}
                                         />
                                     </ViewToggleContainer>
                                 </Tooltip>
