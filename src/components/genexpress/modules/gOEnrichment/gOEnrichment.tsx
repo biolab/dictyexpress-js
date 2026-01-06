@@ -1,6 +1,6 @@
 import React, { ReactElement, useCallback, useEffect, useState } from 'react';
 import { connect, ConnectedProps } from 'react-redux';
-import { Button, MenuItem, Tooltip, SelectChangeEvent } from '@mui/material';
+import { MenuItem, Tooltip, SelectChangeEvent } from '@mui/material';
 import _ from 'lodash';
 import { ColDef, SortChangedEvent, ValueFormatterParams } from 'ag-grid-community';
 import {
@@ -8,6 +8,10 @@ import {
     GOEnrichmentControl,
     GOEnrichmentControls,
     GOEnrichmentGridContainer,
+    ViewToggleContainer,
+    ViewToggleLabels,
+    ViewToggleLabel,
+    DarkSwitch,
 } from './gOEnrichment.styles';
 import ScoreCell from './scoreCell/scoreCell';
 import GOEnrichmentMatchedCell from './matchedCell/matchedCell';
@@ -367,20 +371,35 @@ A list of all gene associations for each term is available in a separate file - 
                         </GOEnrichmentControl>
                         {gOEnrichmentRows.length > 0 && (
                             <GOEnrichmentControl>
-                                {treeView && (
-                                    <Tooltip title="View terms in a sortable grid (instead of hierarchical tree)">
-                                        <Button onClick={(): void => setTreeView(false)}>
-                                            Flat
-                                        </Button>
-                                    </Tooltip>
-                                )}
-                                {!treeView && (
-                                    <Tooltip title="View terms in a hierarchical tree">
-                                        <Button onClick={(): void => setTreeView(true)}>
-                                            Hierarchy
-                                        </Button>
-                                    </Tooltip>
-                                )}
+                                <Tooltip
+                                    title={
+                                        treeView
+                                            ? 'Toggle to view terms in a sortable grid'
+                                            : 'Toggle to view terms in a hierarchical tree'
+                                    }
+                                >
+                                    <ViewToggleContainer>
+                                        <ViewToggleLabels>
+                                            <ViewToggleLabel $isActive={treeView}>
+                                                Hierarchy
+                                            </ViewToggleLabel>
+                                            <ViewToggleLabel $isActive={!treeView}>
+                                                Flat
+                                            </ViewToggleLabel>
+                                        </ViewToggleLabels>
+                                        <DarkSwitch
+                                            checked={!treeView}
+                                            onChange={(event): void =>
+                                                setTreeView(!event.target.checked)
+                                            }
+                                            size="small"
+                                            inputProps={{
+                                                'aria-label':
+                                                    'Toggle between Hierarchy and Flat view',
+                                            }}
+                                        />
+                                    </ViewToggleContainer>
+                                </Tooltip>
                             </GOEnrichmentControl>
                         )}
                     </GOEnrichmentControls>

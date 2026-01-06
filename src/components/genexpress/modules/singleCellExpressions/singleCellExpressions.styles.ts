@@ -7,22 +7,12 @@ export const SingleCellExpressionsContainer = styled.div`
     gap: ${({ theme }) => theme.spacing(1)};
 `;
 
-export const ControlsRow = styled.div<{ $toggleCount?: number }>`
+export const SingleCellExpressionsControls = styled.div`
     position: relative;
     display: flex;
-    flex-wrap: wrap;
+    flex-flow: row nowrap;
+    align-items: center;
     gap: 10px;
-    align-items: flex-end;
-    padding-right: ${({ $toggleCount = 1 }) =>
-        $toggleCount * 80}px; /* Dynamic space for legend toggles */
-`;
-
-export const LegendToggleContainer = styled.div`
-    position: absolute;
-    top: 0;
-    right: 0;
-    display: flex;
-    gap: 0px;
 `;
 
 export const InfoRow = styled.div`

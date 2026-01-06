@@ -16,6 +16,14 @@ import { TutorialProvider, Tutorial } from './tutorial';
 import { DictyUrlQueryParameter, LayoutBreakpoint, ModulesKeys } from './common/constants';
 import { ResponsiveGridLayoutContainer } from './geneExpressGrid.styles';
 import useBrowserVisibility from './common/useBrowserVisibility';
+import {
+    timeSeriesInfo,
+    expressionTimeCoursesInfo,
+    differentialExpressionsInfo,
+    goEnrichmentInfo,
+    clusteringInfo,
+    singleCellInfo,
+} from './moduleInfoContent';
 import { getUrlQueryParameter } from 'utils/url';
 import { loadBookmarkedState } from 'managers/bookmarkStateManager';
 import { appFocused, appStarted, fetchAndSelectPredefinedGenes } from 'redux/epics/epicsActions';
@@ -148,6 +156,7 @@ const GeneExpressGrid = ({
                         <DictyModule
                             title="Time series and Gene Selection"
                             isLoading={isFetchingTimeSeries || isAddingToBasket}
+                            infoContent={timeSeriesInfo}
                         >
                             <TimeSeriesAndGeneSelector />
                         </DictyModule>
@@ -156,6 +165,7 @@ const GeneExpressGrid = ({
                         <DictyModule
                             title="Expression Time Courses"
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
+                            infoContent={expressionTimeCoursesInfo}
                         >
                             <GenesExpressions />
                         </DictyModule>
@@ -170,6 +180,7 @@ const GeneExpressGrid = ({
                                 isFetchingDifferentialExpressions ||
                                 isFetchingDifferentialExpressionsData
                             }
+                            infoContent={differentialExpressionsInfo}
                         >
                             <DifferentialExpressions />
                         </DictyModule>
@@ -179,6 +190,7 @@ const GeneExpressGrid = ({
                             title="Gene Ontology Enrichment"
                             isLoading={isFetchingGOEnrichmentJson}
                             status={gOEnrichmentStatus}
+                            infoContent={goEnrichmentInfo}
                         >
                             <GOEnrichment />
                         </DictyModule>
@@ -187,14 +199,16 @@ const GeneExpressGrid = ({
                         <DictyModule
                             title="Hierarchical Clustering"
                             isLoading={isFetchingSamplesExpressions || isFetchingGenesMappings}
+                            infoContent={clusteringInfo}
                         >
                             <Clustering />
                         </DictyModule>
                     </div>
                     <div key={ModulesKeys.singleCellExpressions} data-tutorial="single-cell-module">
                         <DictyModule
-                            title="Single Cell Expression"
+                            title="Single-Cell Expression"
                             isLoading={isFetchingSingleCellExpressions}
+                            infoContent={singleCellInfo}
                         >
                             <SingleCellExpressions />
                         </DictyModule>

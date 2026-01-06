@@ -48,6 +48,7 @@ const generateMockGeneExpression = (nCells: number): Float32Array => {
 
 describe('SingleCellExpressions integration', () => {
     let initialState: RootState;
+    let boundingRectSpy: ReturnType<typeof vi.spyOn>;
     const nCells = 100;
     const mockGeneNames = ['DDB_G0267412', 'DDB_G0276939', 'DDB_G0277379', 'DDB_G0269172'];
     const mockGeneSymbols = ['pspA', 'pspB', 'pspD', 'pspC'];
@@ -58,11 +59,28 @@ describe('SingleCellExpressions integration', () => {
     );
 
     beforeAll(() => {
+        // Mock getBoundingClientRect to return a large width so all controls are visible
+        boundingRectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+            width: 600,
+            height: 400,
+            top: 0,
+            left: 0,
+            bottom: 400,
+            right: 600,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+        });
+
         // Setup fetch mock for common requests
         fetchMock.resetMocks();
         fetchMock.mockResponse((req) => {
             return handleCommonRequests(req) ?? Promise.reject(new Error(`bad url: ${req.url}`));
         });
+    });
+
+    afterAll(() => {
+        boundingRectSpy.mockRestore();
     });
 
     beforeEach(() => {

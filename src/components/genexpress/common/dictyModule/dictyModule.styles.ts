@@ -24,6 +24,13 @@ export const ModuleHeader = styled.div`
     padding: 5px 0;
 `;
 
+export const InfoButtonWrapper = styled.div`
+    position: absolute;
+    right: 8px;
+    top: 45%;
+    transform: translateY(-50%);
+`;
+
 export const LoadingBar = styled(LinearProgress)`
     width: 100%;
     position: absolute;
