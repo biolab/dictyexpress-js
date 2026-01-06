@@ -5,14 +5,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
-# 1.2.0
+## 1.2.1
+
+### Added
+
+-   Info modals for all modules.
+
+### Changed
+
+-   UI improvements such as ellipsis for hidden controls.
+
+## 1.2.0
 
 ### Added
 
 -   Interactive tutorial for new users.
 -   New module for single-cell expression data.
 
-# 1.1.0
+## 1.1.0
 
 ### Added
 
@@ -22,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 -   Fetch sample relations only for bcm community.
 
-# 1.0.1
+## 1.0.1
 
 ### Fixed
 
