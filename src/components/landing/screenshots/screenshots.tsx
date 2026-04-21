@@ -112,10 +112,10 @@ const Screenshots = (): ReactElement => {
                                 alt="Differential Expression - Selection module"
                             />
                             <p>
-                                In the <b>Differential Expression -Selection module</b> you can make
-                                a rough selection by clicking & dragging. After that the
-                                Differential Expression - Selection window appears where you can
-                                filter and select the genes.
+                                In the <b>Differential Expression module</b> you can make a rough
+                                selection by clicking & dragging. After that the Differential
+                                Expression - Selection window appears where you can filter and
+                                select the genes.
                             </p>
                         </div>
                         <div>
