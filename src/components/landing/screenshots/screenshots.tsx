@@ -5,6 +5,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import { Arrow, Screenshot, SliderContainer } from './screenshots.styles';
 import experimentAndGeneSelection from 'images/modules/ExperimentAndGeneSelection.png';
 import expressionTC from 'images/modules/ExpressionTC.png';
+import singleCellImage from 'images/modules/SingleCell.png';
 import hierarchicalClusteringImage from 'images/modules/HierarchicalClustering.png';
 import geneOntologyImage from 'images/modules/GeneOntology.png';
 import volcanoPlotImage from 'images/modules/VolcanoPlot.png';
@@ -63,6 +64,17 @@ const Screenshots = (): ReactElement => {
                         </div>
                         <div>
                             <Screenshot
+                                src={singleCellImage}
+                                alt="Single Cell Expressions module"
+                            />
+                            <p>
+                                The <b>Single-Cell Expression module</b> displays a UMAP scatter
+                                plot of single cells, with controls to color cells by time or gene
+                                expression and to inspect individual cells via tooltips.
+                            </p>
+                        </div>
+                        <div>
+                            <Screenshot
                                 src={hierarchicalClusteringImage}
                                 alt="Hierarchical Clustering module"
                             />
@@ -100,10 +112,10 @@ const Screenshots = (): ReactElement => {
                                 alt="Differential Expression - Selection module"
                             />
                             <p>
-                                In the <b>Differential Expression -Selection module</b> you can make
-                                a rough selection by clicking & dragging. After that the
-                                Differential Expression - Selection window appears where you can
-                                filter and select the genes.
+                                In the <b>Differential Expression module</b> you can make a rough
+                                selection by clicking & dragging. After that the Differential
+                                Expression - Selection window appears where you can filter and
+                                select the genes.
                             </p>
                         </div>
                         <div>

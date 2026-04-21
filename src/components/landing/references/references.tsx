@@ -10,6 +10,24 @@ const References = (): ReactElement => (
         <Title>References</Title>
         <ReferencesContainer>
             <Reference
+                authors="Katoh-Kurasawa M, Trnovec L, Lehmann P, Chen R, Li Y, Zupan B, Shaulsky G"
+                source="Nature Communications 2026"
+            >
+                <a href="https://pubmed.ncbi.nlm.nih.gov/41792273/">
+                    Early cAMP signaling orchestrates single-cell synchronicity throughout{' '}
+                    <i>Dictyostelium</i> development
+                </a>
+            </Reference>
+            <Reference
+                authors="Katoh-Kurasawa M, Trnovec L, Lehmann P, Zupan B, Shaulsky G"
+                source="BMC Genomics 2025"
+            >
+                <a href="https://pubmed.ncbi.nlm.nih.gov/40474076/">
+                    Mutual suppression between mutations in the <i>Dictyostelium</i> Greenbeard
+                    pathway restores wild-type development
+                </a>
+            </Reference>
+            <Reference
                 authors="Katoh-Kurasawa M, Hrovatin K, Hirose S, Webb A, Ho H, Zupan B, Shaulsky G"
                 source="Genome Research 2021"
             >
