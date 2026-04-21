@@ -15,17 +15,20 @@ const Credits = (): ReactElement => (
         <SectionContentContainer id={SectionNames.CREDITS} $centerText>
             <Title>Credits</Title>
             <p>
-                dictyExpress is maintained by the{' '}
+                dictyExpress is maintained by the <br />
                 <a href="http://www.biolab.si">
                     Bioinformatics Laboratory at University of Ljubljana
                 </a>{' '}
-                (application development) and{' '}
+                (application development)
+                <br /> and{' '}
                 <a href="https://www.bcm.edu/people/view/b17c52a8-ffed-11e2-be68-080027880ca6">
                     Gad Shaulsky’s lab at Baylor College of Medicine
                 </a>{' '}
-                (data). We thank <a href="http://www.genialis.com">Genialis</a> and Adam Kuspa’s lab
-                at Baylor College of Medicine for their contributions to the original design and
-                implementation.
+                (data).
+                <br /> <br />
+                We thank <a href="http://www.genialis.com">Genialis</a> and Adam Kuspa’s lab at
+                Baylor College of Medicine <br />
+                for their contributions to the original design and implementation.
             </p>
             <CreditsLogos>
                 <a href="https://www.bcm.edu/">
