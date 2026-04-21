@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 1.2.2
+
+### Changed
+
+-   Update landing page with new screenshots and credits.
+
 ## 1.2.1
 
 ### Added
