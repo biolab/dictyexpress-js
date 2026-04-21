@@ -5,6 +5,7 @@ import 'slick-carousel/slick/slick-theme.css';
 import { Arrow, Screenshot, SliderContainer } from './screenshots.styles';
 import experimentAndGeneSelection from 'images/modules/ExperimentAndGeneSelection.png';
 import expressionTC from 'images/modules/ExpressionTC.png';
+import singleCellImage from 'images/modules/SingleCell.png';
 import hierarchicalClusteringImage from 'images/modules/HierarchicalClustering.png';
 import geneOntologyImage from 'images/modules/GeneOntology.png';
 import volcanoPlotImage from 'images/modules/VolcanoPlot.png';
@@ -59,6 +60,17 @@ const Screenshots = (): ReactElement => {
                             <p>
                                 The <b>Expression Time Series module</b> displays the gene
                                 expression profiles (time-series) of selected genes.
+                            </p>
+                        </div>
+                        <div>
+                            <Screenshot
+                                src={singleCellImage}
+                                alt="Single Cell Expressions module"
+                            />
+                            <p>
+                                The <b>Single-Cell Expression module</b> displays a UMAP scatter
+                                plot of single cells, with controls to color cells by time or gene
+                                expression and to inspect individual cells via tooltips.
                             </p>
                         </div>
                         <div>

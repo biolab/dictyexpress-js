@@ -175,7 +175,7 @@ const GeneExpressGrid = ({
                         data-tutorial="differential-module"
                     >
                         <DictyModule
-                            title="Differential expressions"
+                            title="Differential expression"
                             isLoading={
                                 isFetchingDifferentialExpressions ||
                                 isFetchingDifferentialExpressionsData

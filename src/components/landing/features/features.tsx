@@ -18,7 +18,8 @@ const Features = (): ReactElement => (
                 <i>D. purpureum</i>
             </Feature>
             <Feature imageSrc={dendrogramImage} name="Dendrogram">
-                Find clusters of expressed genes and play with Gene Ontology enrichment analysis
+                Explore how gene expression changes across developmental time points at single-cell
+                resolution
             </Feature>
             <Feature imageSrc={dnkImage} name="DNK">
                 Compare gene expression across different strains and explore cell-type specific
