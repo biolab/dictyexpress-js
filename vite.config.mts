@@ -4,17 +4,14 @@ import svgr from 'vite-plugin-svgr';
 import viteTsconfigPaths from 'vite-tsconfig-paths';
 import type { PluginOption, ProxyOptions } from 'vite';
 
-const targetDomain = 'qa.genialis.io';
+const targetDomain = 'app.dictyexpress.org';
 const secure = false;
 
 const wsProxyConfig: ProxyOptions = {
-    // QA websocket is on a .ws subdomain, that's why the target is hardcoded.
-    // Do not forget to change it when proxying to other environments.
-    // target: `wss://${targetDomain}`,
-    target: 'wss://ws.qa.genialis.io',
+    target: `wss://${targetDomain}`,
     ws: true,
     headers: {
-        Host: 'ws.qa.genialis.io',
+        Host: targetDomain,
     },
     secure: false,
 };
@@ -75,6 +72,9 @@ export default defineConfig({
             '/ws': wsProxyConfig,
             '/api': proxyConfig,
             '/saml-auth': proxyConfig,
+            // Served in prod from the biolab-singlecell-data bucket via CloudFront;
+            // proxy it so the single-cell module loads its data locally too.
+            '/single-cell-data': proxyConfig,
         },
     },
 });

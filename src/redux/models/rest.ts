@@ -33,6 +33,13 @@ export type FindSimilarGenesData = {
     };
 } & Omit<Data, 'output'>;
 
+export type FastFindSimilarGenesResponse = {
+    'search gene'?: string;
+    search_gene?: string;
+    'similar genes'?: Array<{ gene: string; distance: number }>;
+    similar_genes?: Array<{ gene: string; distance: number }>;
+};
+
 export type BasketExpressionRequest = {
     basket: string;
     tags?: string[];

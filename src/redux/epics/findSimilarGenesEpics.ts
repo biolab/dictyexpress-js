@@ -1,9 +1,18 @@
 import _ from 'lodash';
-import { DataStatus, Storage } from '@genialis/resolwe/dist/api/types/rest';
+import { DataStatus, DONE_DATA_STATUS, Storage } from '@genialis/resolwe/dist/api/types/rest';
 import { combineEpics, Epic } from 'redux-observable';
-import { filter, map, mergeMap, switchMap, withLatestFrom } from 'rxjs/operators';
+import {
+    catchError,
+    endWith,
+    filter,
+    map,
+    mergeMap,
+    startWith,
+    switchMap,
+    withLatestFrom,
+} from 'rxjs/operators';
 import { Action } from '@reduxjs/toolkit';
-import { combineLatest, merge, of } from 'rxjs';
+import { combineLatest, EMPTY, from, merge, of } from 'rxjs';
 import {
     fetchGenesSimilarities,
     fetchGenesSimilaritiesData,
@@ -25,14 +34,17 @@ import {
     genesSimilaritiesStatusUpdated,
 } from 'redux/stores/genesSimilarities';
 import { FindSimilarGenesData } from 'redux/models/rest';
-import { getBasketExpressionsIds } from 'redux/stores/timeSeries';
+import { findSimilarGenesFast, isFastFindSimilarEnabled } from 'api';
+import { getBasketExpressionsIds, getSelectedTimeSeries } from 'redux/stores/timeSeries';
 import { getSelectedGenesIds } from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
+import { handleError } from 'utils/errorUtils';
 
 const processParametersObservable: ProcessDataEpicsFactoryProps<FindSimilarGenesData>['processParametersObservable'] =
     (action$, state$) => {
         return merge(
             action$.pipe(
+                filter(() => !isFastFindSimilarEnabled()),
                 filter(fetchGenesSimilarities.match),
                 withLatestFrom(state$),
                 mergeMap(([, state]) => {
@@ -86,7 +98,10 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<FindSimilarGenes
                         return getGenesSimilaritiesDistanceMeasure(state.genesSimilarities);
                     }),
                 ),
-            ]).pipe(mergeMap(() => of({}))),
+            ]).pipe(
+                filter(() => !isFastFindSimilarEnabled()),
+                mergeMap(() => of({})),
+            ),
         );
     };
 
@@ -119,4 +134,55 @@ const handleSelectedGenesChangedEpic: Epic<Action, Action, RootState> = (action$
     );
 };
 
-export default combineEpics(getFindSimilarGenesProcessDataEpics, handleSelectedGenesChangedEpic);
+const fastFindSimilarGenesEpic: Epic<Action, Action, RootState> = (action$, state$) => {
+    return action$.pipe(
+        filter(() => isFastFindSimilarEnabled()),
+        filter(fetchGenesSimilarities.match),
+        withLatestFrom(state$),
+        filter(([, state]) => getGenesSimilarities(state.genesSimilarities) == null),
+        switchMap(([, state]) => {
+            const expressionsIds = getBasketExpressionsIds(state.timeSeries);
+            const queryGeneId = getGenesSimilaritiesQueryGeneId(state.genesSimilarities);
+            const selectedTimeSeries = getSelectedTimeSeries(state.timeSeries);
+
+            if (queryGeneId == null || selectedTimeSeries == null || expressionsIds.length === 0) {
+                return EMPTY;
+            }
+
+            return from(
+                findSimilarGenesFast({
+                    timeSeriesId: selectedTimeSeries.id,
+                    expressionsIds: _.sortBy(expressionsIds),
+                    geneId: queryGeneId,
+                    distance: getGenesSimilaritiesDistanceMeasure(state.genesSimilarities),
+                }),
+            ).pipe(
+                mergeMap((response) =>
+                    of(
+                        genesSimilaritiesStatusUpdated(DONE_DATA_STATUS),
+                        genesSimilaritiesFetchSucceeded(
+                            response['similar genes'] ?? response.similar_genes ?? [],
+                        ),
+                    ),
+                ),
+                catchError((error) =>
+                    of(
+                        genesSimilaritiesStatusUpdated(null),
+                        handleError('Error retrieving similar genes.', error),
+                    ),
+                ),
+                startWith(
+                    genesSimilaritiesFetchStarted(),
+                    genesSimilaritiesStatusUpdated(null),
+                ),
+                endWith(genesSimilaritiesFetchEnded()),
+            );
+        }),
+    );
+};
+
+export default combineEpics(
+    getFindSimilarGenesProcessDataEpics,
+    fastFindSimilarGenesEpic,
+    handleSelectedGenesChangedEpic,
+);

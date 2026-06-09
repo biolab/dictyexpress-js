@@ -8,6 +8,7 @@ vi.setConfig({ testTimeout: 10_000 });
 vi.stubGlobal('API_URL', null);
 vi.stubGlobal('SAML_AUTH_URL', null);
 vi.stubGlobal('WEBSOCKET_URL', null);
+vi.stubGlobal('FIND_SIMILAR_API_URL', null);
 vi.stubGlobal('COMMUNITY_SLUG', 'test');
 vi.stubGlobal('SELECTED_TIMESERIES_SLUG', 'test');
 vi.stubEnv('VITE_APP_NAME', 'dictyExpress');

@@ -82,7 +82,7 @@ const columnDefs = [
         },
         headerName: 'Score',
         width: 90,
-        sort: 'desc',
+        sort: 'asc',
     },
     {
         valueGetter: (params: ValueGetterParams): string => {
