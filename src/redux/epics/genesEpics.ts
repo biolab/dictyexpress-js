@@ -16,6 +16,7 @@ import {
     switchMap,
     first,
     bufferCount,
+    toArray,
 } from 'rxjs/operators';
 import { of, from, EMPTY, Observable, merge } from 'rxjs';
 import { filterNullAndUndefined, mapStateSlice } from './rxjsCustomFilters';
@@ -67,19 +68,23 @@ const fetchGenesActionObservable = (
         switchMap((basketInfo) => {
             return from(geneIdsToFetch).pipe(
                 bufferCount(listByIdsLimit),
-                mergeMap((bufferedGeneIds) => {
-                    return from(
-                        listByIds(
-                            source ?? basketInfo.source,
-                            bufferedGeneIds,
-                            species ?? basketInfo.species,
+                // Fetch the chunks in parallel (bounded), then commit them to the
+                // store in a SINGLE genesFetchSucceeded. Dispatching per-chunk made
+                // the genes list re-render once per chunk (e.g. 3 visible "reloads"
+                // when hydrating ~12k similar genes); one dispatch = one render.
+                mergeMap(
+                    (bufferedGeneIds) =>
+                        from(
+                            listByIds(
+                                source ?? basketInfo.source,
+                                bufferedGeneIds,
+                                species ?? basketInfo.species,
+                            ),
                         ),
-                    ).pipe(
-                        map((response) => {
-                            return genesFetchSucceeded(response);
-                        }),
-                    );
-                }, 1),
+                    4,
+                ),
+                toArray(),
+                map((responses) => genesFetchSucceeded(responses.flat())),
             );
         }),
     );
