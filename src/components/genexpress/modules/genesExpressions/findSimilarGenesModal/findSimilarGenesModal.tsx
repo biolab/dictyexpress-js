@@ -20,6 +20,7 @@ import { Gene, Option } from 'redux/models/internal';
 import { getGenesById, getIsFetchingSimilarGenes, getSelectedGenes } from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
 import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
+import { isFastFindSimilarEnabled } from 'api';
 import { fetchGenesSimilarities } from 'redux/epics/epicsActions';
 import {
     genesSimilaritiesDistanceMeasureChanged,
@@ -192,6 +193,13 @@ const FindSimilarGenesModal = ({
                                         connectedGenesSimilaritiesDistanceMeasureChanged(
                                             event.target.value as DistanceMeasure,
                                         );
+                                        // Changing the distance clears results; on the fast path
+                                        // recompute immediately instead of making the user click
+                                        // Find again. Skipped on the slow Resolwe path, where each
+                                        // compute queues an expensive process.
+                                        if (isFastFindSimilarEnabled()) {
+                                            connectedFetchGenesSimilarities();
+                                        }
                                     }}
                                 >
                                     {distanceMeasureOptions.map((distanceMeasureOption) => (
@@ -205,7 +213,7 @@ const FindSimilarGenesModal = ({
                                 </DictySelect>
                             </DistanceMeasureFormControl>
                         </div>
-                        {similarGenes == null && (
+                        {similarGenes == null && !isLoading && (
                             <Button
                                 onClick={() => {
                                     connectedFetchGenesSimilarities();
