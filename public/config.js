@@ -11,7 +11,7 @@ WEBSOCKET_URL = 'wss://app.genialis.com/ws/v2';
 FIND_SIMILAR_API_URL = 'https://sl48nzcp1a.execute-api.us-east-1.amazonaws.com';
 // Default: use Resolwe goenrichment process.
 // Set to the AWS API Gateway endpoint to use the fast gotea GO-enrichment service.
-GO_ENRICHMENT_API_URL = null;
+GO_ENRICHMENT_API_URL = 'https://diue278in7.execute-api.us-east-1.amazonaws.com';
 
 // Default: bcm
 COMMUNITY_SLUG = 'bcm';
