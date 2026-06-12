@@ -4,6 +4,7 @@ export { addToBasket } from './basketApi';
 export { getCSRFCookie } from './csrfApi';
 export { getDifferentialExpressions } from './differentialExpressionApi';
 export { findSimilarGenesFast, isFastFindSimilarEnabled } from './findSimilarApi';
+export { goEnrichmentFast, isFastGOEnrichmentEnabled } from './gOEnrichmentApi';
 export { getOrCreateData } from './getOrCreateApi';
 export { getStorage } from './storageApi';
 export { listByIds } from './geneListApi';

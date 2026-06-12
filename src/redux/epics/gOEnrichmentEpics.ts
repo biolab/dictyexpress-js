@@ -1,5 +1,13 @@
-import { combineLatest, EMPTY, merge, of } from 'rxjs';
-import { debounceTime, filter, switchMap } from 'rxjs/operators';
+import { combineLatest, EMPTY, from, merge, of } from 'rxjs';
+import {
+    catchError,
+    debounceTime,
+    endWith,
+    filter,
+    map,
+    startWith,
+    switchMap,
+} from 'rxjs/operators';
 import { DataGOEnrichmentAnalysis, Storage } from '@genialis/resolwe/dist/api/types/rest';
 import { combineEpics, Epic } from 'redux-observable';
 import { Action } from '@reduxjs/toolkit';
@@ -9,7 +17,10 @@ import getProcessDataEpicsFactory, {
     ProcessesInfo,
 } from './getProcessDataEpicsFactory';
 import { filterNullAndUndefined, mapStateSlice } from './rxjsCustomFilters';
+import { handleError } from 'utils/errorUtils';
+import { goEnrichmentFast, isFastGOEnrichmentEnabled } from 'api';
 import { appendMissingAttributesToJson } from 'utils/gOEnrichmentUtils';
+import { EnhancedGOEnrichmentJson } from 'redux/models/internal';
 import {
     getGaf,
     getGOEnrichmentJson,
@@ -88,6 +99,7 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
                 filterNullAndUndefined(),
             ),
         ]).pipe(
+            filter(() => !isFastGOEnrichmentEnabled()),
             filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) == null),
             switchMap(([gaf, pValueThreshold, selectedGenes, ontologyObo]) => {
                 // This condition is necessary because RxJS filter function doesn't have null type guard in it's type definition.
@@ -131,4 +143,74 @@ const getGOEnrichmentProcessDataEpics = getProcessDataEpicsFactory<DataGOEnrichm
     actionFromStatusUpdate: (status) => gOEnrichmentStatusUpdated(status),
 });
 
-export default combineEpics(setAwaitingGoEnrichmentData, getGOEnrichmentProcessDataEpics);
+/*
+ * Fast path: when GO_ENRICHMENT_API_URL is set, call the gotea Lambda directly
+ * instead of scheduling the Resolwe goenrichment process. Mirrors the Resolwe
+ * trigger (debounced selected/highlighted genes + p-value, gated on the GAF being
+ * loaded so the result's gene ids can be resolved to names by
+ * appendMissingAttributesToJson, exactly as the process path does).
+ */
+const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$) => {
+    const genes$ = state$.pipe(
+        mapStateSlice((state) => {
+            const highlighted = getHighlightedGenesSortedById(state.genes);
+            return highlighted.length > 0 ? highlighted : getSelectedGenesSortedById(state.genes);
+        }),
+    );
+    return combineLatest([
+        state$.pipe(
+            mapStateSlice((state) => getGaf(state.gOEnrichment)),
+            filterNullAndUndefined(),
+        ),
+        state$.pipe(mapStateSlice((state) => getPValueThreshold(state.gOEnrichment))),
+        // Emit null on every gene change, then the debounced value (mirrors the
+        // process path) so a change cancels an in-flight compute and restarts it.
+        merge(
+            genes$.pipe(switchMap(() => of(null))),
+            genes$.pipe(debounceTime(gOEnrichmentProcessDebounceTime)),
+        ),
+    ]).pipe(
+        filter(() => isFastGOEnrichmentEnabled()),
+        filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) == null),
+        switchMap(([gaf, pValueThreshold, selectedGenes]) => {
+            if (selectedGenes == null || Object.keys(gaf).length === 0) {
+                return EMPTY;
+            }
+            if (selectedGenes.length === 0) {
+                return EMPTY;
+            }
+            return from(
+                goEnrichmentFast({
+                    genes: selectedGenes.map((gene) => gene.feature_id),
+                    pvalThreshold: pValueThreshold,
+                    source: selectedGenes[0].source,
+                    species: selectedGenes[0].species,
+                }),
+            ).pipe(
+                map((json) => {
+                    // appendMissingAttributesToJson enhances the json in place
+                    // (depth, score_percentage, per-row gene_associations, ...),
+                    // turning it into an EnhancedGOEnrichmentJson — same as the
+                    // Resolwe path's actionFromStorageResponse. GAF source/species
+                    // resolve the (UniProt) result ids to gene names.
+                    const enhanced = json as unknown as EnhancedGOEnrichmentJson;
+                    appendMissingAttributesToJson(
+                        enhanced,
+                        getGOEnrichmentSource(state$.value.gOEnrichment),
+                        getGOEnrichmentSpecies(state$.value.gOEnrichment),
+                    );
+                    return gOEnrichmentJsonFetchSucceeded(enhanced);
+                }),
+                catchError((error) => of(handleError('Error retrieving GO enrichment.', error))),
+                startWith(gOEnrichmentJsonFetchStarted()),
+                endWith(gOEnrichmentJsonFetchEnded()),
+            );
+        }),
+    );
+};
+
+export default combineEpics(
+    setAwaitingGoEnrichmentData,
+    getGOEnrichmentProcessDataEpics,
+    fastGOEnrichmentEpic,
+);
