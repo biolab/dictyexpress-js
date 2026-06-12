@@ -41,6 +41,10 @@ import {
 import { RootState } from 'redux/rootReducer';
 
 export const gOEnrichmentProcessDebounceTime = 3000;
+// The fast (Lambda) path computes in ~0.3s, so it doesn't need the long debounce
+// the expensive Resolwe process required — just enough to coalesce rapid gene
+// selection changes.
+export const gOEnrichmentFastDebounceTime = 400;
 
 const setAwaitingGoEnrichmentData: Epic<Action, Action, RootState> = (_action$, state$) => {
     return state$.pipe(
@@ -167,7 +171,7 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
         // process path) so a change cancels an in-flight compute and restarts it.
         merge(
             genes$.pipe(switchMap(() => of(null))),
-            genes$.pipe(debounceTime(gOEnrichmentProcessDebounceTime)),
+            genes$.pipe(debounceTime(gOEnrichmentFastDebounceTime)),
         ),
     ]).pipe(
         filter(() => isFastGOEnrichmentEnabled()),
