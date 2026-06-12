@@ -195,13 +195,14 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
                     // appendMissingAttributesToJson enhances the json in place
                     // (depth, score_percentage, per-row gene_associations, ...),
                     // turning it into an EnhancedGOEnrichmentJson — same as the
-                    // Resolwe path's actionFromStorageResponse. GAF source/species
-                    // resolve the (UniProt) result ids to gene names.
+                    // Resolwe path's actionFromStorageResponse. The Lambda returns
+                    // result gene ids in the GAF namespace, so use the GAF
+                    // source/species for later list_by_ids lookups during export.
                     const enhanced = json as unknown as EnhancedGOEnrichmentJson;
                     appendMissingAttributesToJson(
                         enhanced,
-                        getGOEnrichmentSource(state$.value.gOEnrichment),
-                        getGOEnrichmentSpecies(state$.value.gOEnrichment),
+                        gaf.output.source,
+                        gaf.output.species,
                     );
                     return gOEnrichmentJsonFetchSucceeded(enhanced);
                 }),
