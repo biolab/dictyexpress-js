@@ -147,6 +147,15 @@ const FindSimilarGenesModal = ({
     const handleGeneOnChange = (event: SelectChangeEvent<unknown>): void => {
         connectedGenesSimilaritiesQueryGeneSelected(event.target.value as string);
 
+        // Picking a gene here clears results; on the fast path recompute
+        // immediately instead of making the user click Find again. Skipped on the
+        // slow Resolwe path, where each compute queues an expensive process. This
+        // is the in-modal dropdown ('selected'); main-grid selection uses 'set',
+        // so it is unaffected.
+        if (isFastFindSimilarEnabled()) {
+            connectedFetchGenesSimilarities();
+        }
+
         document.body.focus();
     };
 
