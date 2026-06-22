@@ -10,11 +10,15 @@ export const goEnrichmentFast = async ({
     pvalThreshold,
     source,
     species,
+    ontology,
+    gaf,
 }: {
     genes: string[];
     pvalThreshold: number;
     source: string;
     species: string;
+    ontology: number;
+    gaf: number;
 }): Promise<GOEnrichmentJson> => {
     const endpoint = GO_ENRICHMENT_API_URL;
     if (endpoint == null) {
@@ -32,6 +36,8 @@ export const goEnrichmentFast = async ({
             pval_threshold: pvalThreshold,
             source,
             species,
+            ontology,
+            gaf,
         }),
     );
 };

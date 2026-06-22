@@ -173,10 +173,16 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
             genes$.pipe(switchMap(() => of(null))),
             genes$.pipe(debounceTime(gOEnrichmentFastDebounceTime)),
         ),
+        // The OBO + GAF Data ids let the Lambda lazy-build artifacts for any
+        // species on a miss (same inputs the Resolwe process path passes).
+        state$.pipe(
+            mapStateSlice((state) => getOntologyObo(state.gOEnrichment)),
+            filterNullAndUndefined(),
+        ),
     ]).pipe(
         filter(() => isFastGOEnrichmentEnabled()),
         filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) == null),
-        switchMap(([gaf, pValueThreshold, selectedGenes]) => {
+        switchMap(([gaf, pValueThreshold, selectedGenes, ontologyObo]) => {
             if (selectedGenes == null || Object.keys(gaf).length === 0) {
                 return EMPTY;
             }
@@ -189,6 +195,8 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
                     pvalThreshold: pValueThreshold,
                     source: selectedGenes[0].source,
                     species: selectedGenes[0].species,
+                    ontology: ontologyObo.id,
+                    gaf: gaf.id,
                 }),
             ).pipe(
                 map((json) => {
