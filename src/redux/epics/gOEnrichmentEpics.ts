@@ -1,5 +1,13 @@
-import { combineLatest, EMPTY, merge, of } from 'rxjs';
-import { debounceTime, filter, switchMap } from 'rxjs/operators';
+import { combineLatest, EMPTY, from, merge, of } from 'rxjs';
+import {
+    catchError,
+    debounceTime,
+    endWith,
+    filter,
+    map,
+    startWith,
+    switchMap,
+} from 'rxjs/operators';
 import { DataGOEnrichmentAnalysis, Storage } from '@genialis/resolwe/dist/api/types/rest';
 import { combineEpics, Epic } from 'redux-observable';
 import { Action } from '@reduxjs/toolkit';
@@ -9,7 +17,10 @@ import getProcessDataEpicsFactory, {
     ProcessesInfo,
 } from './getProcessDataEpicsFactory';
 import { filterNullAndUndefined, mapStateSlice } from './rxjsCustomFilters';
+import { handleError } from 'utils/errorUtils';
+import { goEnrichmentFast, isFastGOEnrichmentEnabled } from 'api';
 import { appendMissingAttributesToJson } from 'utils/gOEnrichmentUtils';
+import { EnhancedGOEnrichmentJson } from 'redux/models/internal';
 import {
     getGaf,
     getGOEnrichmentJson,
@@ -30,6 +41,9 @@ import {
 import { RootState } from 'redux/rootReducer';
 
 export const gOEnrichmentProcessDebounceTime = 3000;
+// The fast (Lambda) path computes in ~0.3s, so it just coalesces rapid gene
+// changes rather than needing the process path's long debounce.
+export const gOEnrichmentFastDebounceTime = 400;
 
 const setAwaitingGoEnrichmentData: Epic<Action, Action, RootState> = (_action$, state$) => {
     return state$.pipe(
@@ -88,6 +102,7 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
                 filterNullAndUndefined(),
             ),
         ]).pipe(
+            filter(() => !isFastGOEnrichmentEnabled()),
             filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) == null),
             switchMap(([gaf, pValueThreshold, selectedGenes, ontologyObo]) => {
                 // This condition is necessary because RxJS filter function doesn't have null type guard in it's type definition.
@@ -131,4 +146,73 @@ const getGOEnrichmentProcessDataEpics = getProcessDataEpicsFactory<DataGOEnrichm
     actionFromStatusUpdate: (status) => gOEnrichmentStatusUpdated(status),
 });
 
-export default combineEpics(setAwaitingGoEnrichmentData, getGOEnrichmentProcessDataEpics);
+/*
+ * Fast path: when GO_ENRICHMENT_API_URL is set, call the gotea Lambda directly
+ * instead of the Resolwe goenrichment process. Mirrors the process trigger
+ * (debounced genes + p-value, gated on the GAF being loaded).
+ */
+const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$) => {
+    const genes$ = state$.pipe(
+        mapStateSlice((state) => {
+            const highlighted = getHighlightedGenesSortedById(state.genes);
+            return highlighted.length > 0 ? highlighted : getSelectedGenesSortedById(state.genes);
+        }),
+    );
+    return combineLatest([
+        state$.pipe(
+            mapStateSlice((state) => getGaf(state.gOEnrichment)),
+            filterNullAndUndefined(),
+        ),
+        state$.pipe(mapStateSlice((state) => getPValueThreshold(state.gOEnrichment))),
+        // Emit null on every gene change, then the debounced value (mirrors the
+        // process path) so a change cancels an in-flight compute and restarts it.
+        merge(
+            genes$.pipe(switchMap(() => of(null))),
+            genes$.pipe(debounceTime(gOEnrichmentFastDebounceTime)),
+        ),
+        // The OBO id lets the Lambda lazy-build artifacts for any species on a miss.
+        state$.pipe(
+            mapStateSlice((state) => getOntologyObo(state.gOEnrichment)),
+            filterNullAndUndefined(),
+        ),
+    ]).pipe(
+        filter(() => isFastGOEnrichmentEnabled()),
+        filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) == null),
+        switchMap(([gaf, pValueThreshold, selectedGenes, ontologyObo]) => {
+            if (selectedGenes == null || Object.keys(gaf).length === 0) {
+                return EMPTY;
+            }
+            if (selectedGenes.length === 0) {
+                return EMPTY;
+            }
+            return from(
+                goEnrichmentFast({
+                    genes: selectedGenes.map((gene) => gene.feature_id),
+                    pvalThreshold: pValueThreshold,
+                    source: selectedGenes[0].source,
+                    species: selectedGenes[0].species,
+                    ontology: ontologyObo.id,
+                    gaf: gaf.id,
+                }),
+            ).pipe(
+                map((json) => {
+                    // Enhance in place like the process path's actionFromStorageResponse.
+                    // Result gene ids are in the GAF namespace, so use the GAF
+                    // source/species for later list_by_ids lookups during export.
+                    const enhanced = json as unknown as EnhancedGOEnrichmentJson;
+                    appendMissingAttributesToJson(enhanced, gaf.output.source, gaf.output.species);
+                    return gOEnrichmentJsonFetchSucceeded(enhanced);
+                }),
+                catchError((error) => of(handleError('Error retrieving GO enrichment.', error))),
+                startWith(gOEnrichmentJsonFetchStarted()),
+                endWith(gOEnrichmentJsonFetchEnded()),
+            );
+        }),
+    );
+};
+
+export default combineEpics(
+    setAwaitingGoEnrichmentData,
+    getGOEnrichmentProcessDataEpics,
+    fastGOEnrichmentEpic,
+);

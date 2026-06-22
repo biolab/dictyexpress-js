@@ -20,6 +20,7 @@ import { Gene, Option } from 'redux/models/internal';
 import { getGenesById, getIsFetchingSimilarGenes, getSelectedGenes } from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
 import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
+import { isFastFindSimilarEnabled } from 'api';
 import { fetchGenesSimilarities } from 'redux/epics/epicsActions';
 import {
     genesSimilaritiesDistanceMeasureChanged,
@@ -82,7 +83,7 @@ const columnDefs = [
         },
         headerName: 'Score',
         width: 90,
-        sort: 'desc',
+        sort: 'asc',
     },
     {
         valueGetter: (params: ValueGetterParams): string => {
@@ -146,6 +147,12 @@ const FindSimilarGenesModal = ({
     const handleGeneOnChange = (event: SelectChangeEvent<unknown>): void => {
         connectedGenesSimilaritiesQueryGeneSelected(event.target.value as string);
 
+        // Selecting a gene clears results; on the fast path recompute immediately
+        // rather than making the user click Find (too costly on the Resolwe path).
+        if (isFastFindSimilarEnabled()) {
+            connectedFetchGenesSimilarities();
+        }
+
         document.body.focus();
     };
 
@@ -192,6 +199,10 @@ const FindSimilarGenesModal = ({
                                         connectedGenesSimilaritiesDistanceMeasureChanged(
                                             event.target.value as DistanceMeasure,
                                         );
+                                        // Recompute immediately on the fast path (see handleGeneOnChange).
+                                        if (isFastFindSimilarEnabled()) {
+                                            connectedFetchGenesSimilarities();
+                                        }
                                     }}
                                 >
                                     {distanceMeasureOptions.map((distanceMeasureOption) => (
@@ -205,7 +216,7 @@ const FindSimilarGenesModal = ({
                                 </DictySelect>
                             </DistanceMeasureFormControl>
                         </div>
-                        {similarGenes == null && (
+                        {similarGenes == null && !isLoading && (
                             <Button
                                 onClick={() => {
                                     connectedFetchGenesSimilarities();
