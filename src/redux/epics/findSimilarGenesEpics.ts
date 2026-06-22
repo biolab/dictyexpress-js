@@ -171,10 +171,7 @@ const fastFindSimilarGenesEpic: Epic<Action, Action, RootState> = (action$, stat
                         handleError('Error retrieving similar genes.', error),
                     ),
                 ),
-                startWith(
-                    genesSimilaritiesFetchStarted(),
-                    genesSimilaritiesStatusUpdated(null),
-                ),
+                startWith(genesSimilaritiesFetchStarted(), genesSimilaritiesStatusUpdated(null)),
                 endWith(genesSimilaritiesFetchEnded()),
             );
         }),

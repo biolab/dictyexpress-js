@@ -1,6 +1,6 @@
+import { post } from './fetch';
 import { FastFindSimilarGenesResponse } from 'redux/models/rest';
 import { deserializeResponse } from 'utils/apiUtils';
-import { post } from './fetch';
 
 export const isFastFindSimilarEnabled = (): boolean =>
     typeof FIND_SIMILAR_API_URL !== 'undefined' && FIND_SIMILAR_API_URL != null;

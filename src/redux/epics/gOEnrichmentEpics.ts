@@ -199,11 +199,7 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
                     // result gene ids in the GAF namespace, so use the GAF
                     // source/species for later list_by_ids lookups during export.
                     const enhanced = json as unknown as EnhancedGOEnrichmentJson;
-                    appendMissingAttributesToJson(
-                        enhanced,
-                        gaf.output.source,
-                        gaf.output.species,
-                    );
+                    appendMissingAttributesToJson(enhanced, gaf.output.source, gaf.output.species);
                     return gOEnrichmentJsonFetchSucceeded(enhanced);
                 }),
                 catchError((error) => of(handleError('Error retrieving GO enrichment.', error))),
