@@ -68,10 +68,8 @@ const fetchGenesActionObservable = (
         switchMap((basketInfo) => {
             return from(geneIdsToFetch).pipe(
                 bufferCount(listByIdsLimit),
-                // Fetch the chunks in parallel (bounded), then commit them to the
-                // store in a SINGLE genesFetchSucceeded. Dispatching per-chunk made
-                // the genes list re-render once per chunk (e.g. 3 visible "reloads"
-                // when hydrating ~12k similar genes); one dispatch = one render.
+                // Fetch chunks in parallel, then commit in ONE genesFetchSucceeded:
+                // dispatching per-chunk re-rendered the genes list once per chunk.
                 mergeMap(
                     (bufferedGeneIds) =>
                         from(

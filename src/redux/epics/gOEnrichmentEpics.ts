@@ -41,9 +41,8 @@ import {
 import { RootState } from 'redux/rootReducer';
 
 export const gOEnrichmentProcessDebounceTime = 3000;
-// The fast (Lambda) path computes in ~0.3s, so it doesn't need the long debounce
-// the expensive Resolwe process required — just enough to coalesce rapid gene
-// selection changes.
+// The fast (Lambda) path computes in ~0.3s, so it just coalesces rapid gene
+// changes rather than needing the process path's long debounce.
 export const gOEnrichmentFastDebounceTime = 400;
 
 const setAwaitingGoEnrichmentData: Epic<Action, Action, RootState> = (_action$, state$) => {
@@ -149,10 +148,8 @@ const getGOEnrichmentProcessDataEpics = getProcessDataEpicsFactory<DataGOEnrichm
 
 /*
  * Fast path: when GO_ENRICHMENT_API_URL is set, call the gotea Lambda directly
- * instead of scheduling the Resolwe goenrichment process. Mirrors the Resolwe
- * trigger (debounced selected/highlighted genes + p-value, gated on the GAF being
- * loaded so the result's gene ids can be resolved to names by
- * appendMissingAttributesToJson, exactly as the process path does).
+ * instead of the Resolwe goenrichment process. Mirrors the process trigger
+ * (debounced genes + p-value, gated on the GAF being loaded).
  */
 const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$) => {
     const genes$ = state$.pipe(
@@ -173,8 +170,7 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
             genes$.pipe(switchMap(() => of(null))),
             genes$.pipe(debounceTime(gOEnrichmentFastDebounceTime)),
         ),
-        // The OBO + GAF Data ids let the Lambda lazy-build artifacts for any
-        // species on a miss (same inputs the Resolwe process path passes).
+        // The OBO id lets the Lambda lazy-build artifacts for any species on a miss.
         state$.pipe(
             mapStateSlice((state) => getOntologyObo(state.gOEnrichment)),
             filterNullAndUndefined(),
@@ -200,11 +196,8 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
                 }),
             ).pipe(
                 map((json) => {
-                    // appendMissingAttributesToJson enhances the json in place
-                    // (depth, score_percentage, per-row gene_associations, ...),
-                    // turning it into an EnhancedGOEnrichmentJson — same as the
-                    // Resolwe path's actionFromStorageResponse. The Lambda returns
-                    // result gene ids in the GAF namespace, so use the GAF
+                    // Enhance in place like the process path's actionFromStorageResponse.
+                    // Result gene ids are in the GAF namespace, so use the GAF
                     // source/species for later list_by_ids lookups during export.
                     const enhanced = json as unknown as EnhancedGOEnrichmentJson;
                     appendMissingAttributesToJson(enhanced, gaf.output.source, gaf.output.species);

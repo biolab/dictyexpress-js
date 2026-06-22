@@ -25,9 +25,7 @@ export const goEnrichmentFast = async ({
         throw new Error('Fast GO enrichment endpoint is not configured.');
     }
 
-    // post() builds `new URL(url)`, which requires an absolute URL. The endpoint
-    // may be relative (e.g. '/go' so CloudFront proxies it), so resolve it
-    // against the current origin first.
+    // Resolve the (possibly relative, proxied) endpoint to absolute; post() needs it.
     const url = new URL(endpoint, window.location.origin).toString();
 
     return deserializeResponse<GOEnrichmentJson>(

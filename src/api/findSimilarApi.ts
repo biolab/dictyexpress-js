@@ -21,9 +21,7 @@ export const findSimilarGenesFast = async ({
         throw new Error('Fast find-similar endpoint is not configured.');
     }
 
-    // post() builds a `new URL(url)`, which requires an absolute URL. The
-    // configured endpoint may be relative (e.g. '/find-similar' so Vite can
-    // proxy it), so resolve it against the current origin first.
+    // Resolve the (possibly relative, proxied) endpoint to absolute; post() needs it.
     const url = new URL(endpoint, window.location.origin).toString();
 
     return deserializeResponse<FastFindSimilarGenesResponse>(
