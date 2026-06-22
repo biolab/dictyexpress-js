@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 1.2.3
+
+### Changed
+
+-   Re-implement Find Similar and GO Enrichment modules using the fast API endpoints.
+
 ## 1.2.2
 
 ### Changed
