@@ -5,6 +5,7 @@ import {
     endWith,
     filter,
     map,
+    skip,
     startWith,
     switchMap,
 } from 'rxjs/operators';
@@ -59,6 +60,8 @@ const clearGOEnrichmentOnGenesForEnrichmentChanged: Epic<Action, Action, RootSta
     state$,
 ) => {
     return getGenesForEnrichment$(state$).pipe(
+        // Ignore the initial state replay; only clear on genuine later changes.
+        skip(1),
         filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) != null),
         map(() => gOEnrichmentJsonCleared()),
     );
