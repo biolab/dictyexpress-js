@@ -97,9 +97,7 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
                         return of(null);
                     }),
                 ),
-                getGenesForEnrichment$(state$).pipe(
-                    debounceTime(gOEnrichmentProcessDebounceTime),
-                ),
+                getGenesForEnrichment$(state$).pipe(debounceTime(gOEnrichmentProcessDebounceTime)),
             ),
             state$.pipe(
                 mapStateSlice((state) => {
