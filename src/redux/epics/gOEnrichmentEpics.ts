@@ -1,10 +1,11 @@
-import { combineLatest, EMPTY, from, merge, of } from 'rxjs';
+import { combineLatest, EMPTY, from, merge, Observable, of } from 'rxjs';
 import {
     catchError,
     debounceTime,
     endWith,
     filter,
     map,
+    skip,
     startWith,
     switchMap,
 } from 'rxjs/operators';
@@ -29,6 +30,7 @@ import {
     getOntologyObo,
     getPValueThreshold,
     gOEnrichmentJsonFetchEnded,
+    gOEnrichmentJsonCleared,
     gOEnrichmentJsonFetchStarted,
     gOEnrichmentJsonFetchSucceeded,
     gOEnrichmentStatusUpdated,
@@ -44,6 +46,26 @@ export const gOEnrichmentProcessDebounceTime = 3000;
 // The fast (Lambda) path computes in ~0.3s, so it just coalesces rapid gene
 // changes rather than needing the process path's long debounce.
 export const gOEnrichmentFastDebounceTime = 400;
+
+const getGenesForEnrichment$ = (state$: Observable<RootState>) =>
+    state$.pipe(
+        mapStateSlice((state) => {
+            const highlighted = getHighlightedGenesSortedById(state.genes);
+            return highlighted.length > 0 ? highlighted : getSelectedGenesSortedById(state.genes);
+        }),
+    );
+
+const clearGOEnrichmentOnGenesForEnrichmentChanged: Epic<Action, Action, RootState> = (
+    _action$,
+    state$,
+) => {
+    return getGenesForEnrichment$(state$).pipe(
+        // Ignore the initial state replay; only clear on genuine later changes.
+        skip(1),
+        filter(() => getGOEnrichmentJson(state$.value.gOEnrichment) != null),
+        map(() => gOEnrichmentJsonCleared()),
+    );
+};
 
 const setAwaitingGoEnrichmentData: Epic<Action, Action, RootState> = (_action$, state$) => {
     return state$.pipe(
@@ -73,27 +95,12 @@ const processParametersObservable: ProcessDataEpicsFactoryProps<DataGOEnrichment
             // getProcessDataEpicsFactory will treat the empty array as no selected genes.
             // When genes are highlighted, use highlighted genes for GO enrichment, otherwise use selected genes.
             merge(
-                state$.pipe(
-                    mapStateSlice((state) => {
-                        const highlighted = getHighlightedGenesSortedById(state.genes);
-                        return highlighted.length > 0
-                            ? highlighted
-                            : getSelectedGenesSortedById(state.genes);
-                    }),
+                getGenesForEnrichment$(state$).pipe(
                     switchMap(() => {
                         return of(null);
                     }),
                 ),
-                state$
-                    .pipe(
-                        mapStateSlice((state) => {
-                            const highlighted = getHighlightedGenesSortedById(state.genes);
-                            return highlighted.length > 0
-                                ? highlighted
-                                : getSelectedGenesSortedById(state.genes);
-                        }),
-                    )
-                    .pipe(debounceTime(gOEnrichmentProcessDebounceTime)),
+                getGenesForEnrichment$(state$).pipe(debounceTime(gOEnrichmentProcessDebounceTime)),
             ),
             state$.pipe(
                 mapStateSlice((state) => {
@@ -152,12 +159,7 @@ const getGOEnrichmentProcessDataEpics = getProcessDataEpicsFactory<DataGOEnrichm
  * (debounced genes + p-value, gated on the GAF being loaded).
  */
 const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$) => {
-    const genes$ = state$.pipe(
-        mapStateSlice((state) => {
-            const highlighted = getHighlightedGenesSortedById(state.genes);
-            return highlighted.length > 0 ? highlighted : getSelectedGenesSortedById(state.genes);
-        }),
-    );
+    const genes$ = getGenesForEnrichment$(state$);
     return combineLatest([
         state$.pipe(
             mapStateSlice((state) => getGaf(state.gOEnrichment)),
@@ -213,6 +215,7 @@ const fastGOEnrichmentEpic: Epic<Action, Action, RootState> = (_action$, state$)
 
 export default combineEpics(
     setAwaitingGoEnrichmentData,
+    clearGOEnrichmentOnGenesForEnrichmentChanged,
     getGOEnrichmentProcessDataEpics,
     fastGOEnrichmentEpic,
 );
