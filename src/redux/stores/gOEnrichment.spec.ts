@@ -3,6 +3,7 @@ import _ from 'lodash';
 import { geneDeselected, genesSelected } from './genes';
 import gOEnrichmentReducer, {
     gafFetchSucceeded,
+    gOEnrichmentJsonCleared,
     gOEnrichmentJsonFetchSucceeded,
     GOEnrichmentState,
     ontologyOboFetchSucceeded,
@@ -156,18 +157,20 @@ describe('gOEnrichmentStore store', () => {
             expect(newState).toEqual(expectedState);
         });
 
-        it('should clear json data on geneDeselected action', () => {
+        it('should keep json data on geneDeselected action', () => {
             const newState = gOEnrichmentReducer(initialState, geneDeselected('1'));
-            const expectedState = {
-                ...initialState,
-                json: null,
-            };
 
-            expect(newState).toEqual(expectedState);
+            expect(newState).toEqual(initialState);
         });
 
-        it('should clear json data on genesSelected action', () => {
+        it('should keep json data on genesSelected action', () => {
             const newState = gOEnrichmentReducer(initialState, genesSelected(['1']));
+
+            expect(newState).toEqual(initialState);
+        });
+
+        it('should clear json data on cleared action', () => {
+            const newState = gOEnrichmentReducer(initialState, gOEnrichmentJsonCleared());
             const expectedState = {
                 ...initialState,
                 json: null,

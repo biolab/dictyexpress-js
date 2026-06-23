@@ -8,14 +8,7 @@ import {
 import { combineReducers, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { clearStateOnActions } from './common';
 import createIsFetchingSlice from './fetch';
-import {
-    allGenesDeselected,
-    geneDeselected,
-    genesSelected,
-    geneHighlighted,
-    genesHighlighted,
-    geneUnhighlighted,
-} from './genes';
+import { allGenesDeselected } from './genes';
 import { timeSeriesSelected } from './timeSeries';
 import { EnhancedGOEnrichmentJson } from 'redux/models/internal';
 import { gOEnrichmentDataFetchSucceeded } from 'redux/epics/epicsActions';
@@ -44,6 +37,7 @@ const gOEnrichmentJsonSlice = createSlice({
         ): EnhancedGOEnrichmentJson => {
             return action.payload;
         },
+        cleared: (): EnhancedGOEnrichmentJson | null => gOEnrichmentJsonInitialState,
     },
     extraReducers: (builder) => {
         clearStateOnActions(
@@ -51,11 +45,6 @@ const gOEnrichmentJsonSlice = createSlice({
             [
                 timeSeriesSelected,
                 allGenesDeselected,
-                geneDeselected,
-                genesSelected,
-                geneHighlighted,
-                genesHighlighted,
-                geneUnhighlighted,
                 pValueThresholdSlice.actions.pValueThresholdChanged,
             ],
             gOEnrichmentJsonInitialState,
@@ -157,7 +146,8 @@ export const { gafFetchSucceeded } = gafSlice.actions;
 
 export const { ontologyOboFetchSucceeded } = ontologyOboSlice.actions;
 
-export const { fetchSucceeded: gOEnrichmentJsonFetchSucceeded } = gOEnrichmentJsonSlice.actions;
+export const { fetchSucceeded: gOEnrichmentJsonFetchSucceeded, cleared: gOEnrichmentJsonCleared } =
+    gOEnrichmentJsonSlice.actions;
 
 export const { statusUpdated: gOEnrichmentStatusUpdated } = gOEnrichmentStatusSlice.actions;
 
