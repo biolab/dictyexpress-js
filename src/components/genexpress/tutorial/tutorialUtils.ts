@@ -1,5 +1,10 @@
 import { TUTORIAL_TARGETS } from './tutorialSteps';
 
+export const TUTORIAL_TIME_SERIES_SLUG = 'ts_discoideum_parikh';
+
+export const isTutorialTimeSeries = (timeSeries?: { slug?: string }): boolean =>
+    timeSeries?.slug === TUTORIAL_TIME_SERIES_SLUG;
+
 /**
  * Step indices for the tutorial.
  * Using named constants instead of magic numbers for better maintainability.

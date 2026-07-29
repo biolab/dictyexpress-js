@@ -6,7 +6,7 @@ import { useTutorial } from './tutorialContext';
 import { tutorialSteps, getPlacement, LayoutMode, TUTORIAL_TARGETS } from './tutorialSteps';
 import TutorialStateWatcher from './TutorialStateWatcher';
 import TutorialHighlighter from './TutorialHighlighter';
-import { TUTORIAL_STEP, getDropdownValue } from './tutorialUtils';
+import { TUTORIAL_STEP, getDropdownValue, isTutorialTimeSeries } from './tutorialUtils';
 import { RootState } from 'redux/rootReducer';
 import { breakpoints } from 'components/app/globalStyle';
 
@@ -50,11 +50,7 @@ const Tutorial = (): ReactElement => {
 
     const isTimeSeriesCompleted = useMemo(() => {
         if (!selectedTimeSeriesId) return false;
-        const ts = timeSeriesById[selectedTimeSeriesId];
-        const d = ts?.descriptor as { project?: string; details?: string } | undefined;
-        return Boolean(
-            d?.project?.includes('Filter Development') && d?.details === 'Filter development',
-        );
+        return isTutorialTimeSeries(timeSeriesById[selectedTimeSeriesId]);
     }, [selectedTimeSeriesId, timeSeriesById]);
 
     const isGeneSearchCompleted = useMemo(

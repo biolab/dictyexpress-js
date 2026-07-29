@@ -8,6 +8,7 @@ import {
     DROPDOWN_STEP_CONFIG,
     DROPDOWN_STEPS,
     checkDropdownValue,
+    isTutorialTimeSeries,
 } from './tutorialUtils';
 import { RootState } from 'redux/rootReducer';
 
@@ -33,8 +34,7 @@ const TutorialStateWatcher = (): null => {
         }
         if (selectedTimeSeriesId !== null && selectedTimeSeriesId !== prevTimeSeriesId.current) {
             const ts = timeSeriesById[selectedTimeSeriesId];
-            const d = ts?.descriptor as { project?: string; details?: string } | undefined;
-            if (d?.project?.includes('Filter Development') && d?.details === 'Filter development') {
+            if (isTutorialTimeSeries(ts)) {
                 setTimeout(() => advanceFromStep(TUTORIAL_STEP.TIME_SERIES), ADVANCE_DELAY);
             }
         }

@@ -70,13 +70,12 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.timeSeriesModule,
         content: (
             <>
-                Start by selecting a dataset. Find <b>"02. Filter Development vs. cAMP Pulsing"</b>{' '}
-                with <b>"Filter development"</b> details.
+                Start by selecting a dataset. Find <b>"02. D. discoideum vs. D. purpureum"</b> with{' '}
+                <b>"D. discoideum"</b> details.
                 <br />
                 <br />
-                This dataset (Rosengarten et al., 2015) tracks gene expression over 24 hours as
-                starved amoebae aggregate via cAMP signaling, form a migrating slug, and
-                differentiate into a fruiting body with spores and stalk cells.
+                This dataset (Parikh et al., 2010) follows <i>D. discoideum</i> development over 24
+                hours as part of a comparison with <i>D. purpureum</i>.
                 <br />
                 <br />
                 <b>Click the highlighted row to continue.</b>

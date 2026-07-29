@@ -78,7 +78,11 @@ const TutorialHighlighter = (): JSX.Element | null => {
                         ?.querySelectorAll('.ag-row')
                         .forEach((row) => {
                             const text = row.textContent || '';
-                            if (text.includes('Filter development') && text.includes('Rosengarten'))
+                            if (
+                                text.includes('D. discoideum vs. D. purpureum') &&
+                                text.includes('AX4') &&
+                                text.includes('Parikh')
+                            )
                                 addHighlight(row);
                         });
                     break;
