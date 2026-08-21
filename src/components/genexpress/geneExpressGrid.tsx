@@ -42,9 +42,11 @@ import {
     getIsFetchingGenesMappings,
 } from 'redux/stores/timeSeries';
 import { getIsFetchingSingleCellExpressions } from 'redux/stores/singleCellExpressions';
+import { getSelectedGenesIds } from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+const defaultGeneIds = ['DDB_G0289073', 'DDB_G0269132', 'DDB_G0276761']; // csaA, ecmB, cotB
 
 const mapStateToProps = (state: RootState) => {
     return {
@@ -62,6 +64,7 @@ const mapStateToProps = (state: RootState) => {
         isLoggingOut: getIsLoggingOut(state.authentication),
         isFetchingGOEnrichmentJson: getIsFetchingGOEnrichmentJson(state.gOEnrichment),
         gOEnrichmentStatus: getGOEnrichmentStatus(state.gOEnrichment),
+        hasSelectedGenes: getSelectedGenesIds(state.genes).length > 0,
         isFetchingSingleCellExpressions: getIsFetchingSingleCellExpressions(
             state.singleCellExpressions,
         ),
@@ -86,6 +89,7 @@ const GeneExpressGrid = ({
     isLoggingOut,
     isFetchingGOEnrichmentJson,
     gOEnrichmentStatus,
+    hasSelectedGenes,
     isFetchingSingleCellExpressions,
     connectedLayoutsChanged,
     connectedFetchAndSelectPredefinedGenes,
@@ -113,6 +117,8 @@ const GeneExpressGrid = ({
         const genes = getUrlQueryParameter(location.search, DictyUrlQueryParameter.genes);
         if (genes != null && genes !== '') {
             connectedFetchAndSelectPredefinedGenes({ geneIds: genes.split(',') });
+        } else if (appStateId == null && !hasSelectedGenes) {
+            connectedFetchAndSelectPredefinedGenes({ geneIds: defaultGeneIds });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
