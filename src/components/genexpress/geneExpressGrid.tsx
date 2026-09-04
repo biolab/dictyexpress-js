@@ -96,6 +96,7 @@ const GeneExpressGrid = ({
 }: PropsFromRedux): ReactElement => {
     const dispatch = useDispatch();
     const location = useLocation();
+    const isStartingTutorial = sessionStorage.getItem('startTutorial') === 'true';
 
     // This page is the entry point for geneExpress. Handle app initialization here.
     useEffect(() => {
@@ -117,7 +118,7 @@ const GeneExpressGrid = ({
         const genes = getUrlQueryParameter(location.search, DictyUrlQueryParameter.genes);
         if (genes != null && genes !== '') {
             connectedFetchAndSelectPredefinedGenes({ geneIds: genes.split(',') });
-        } else if (appStateId == null && !hasSelectedGenes) {
+        } else if (appStateId == null && !hasSelectedGenes && !isStartingTutorial) {
             connectedFetchAndSelectPredefinedGenes({ geneIds: defaultGeneIds });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
