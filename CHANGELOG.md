@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 1.2.8
+
+### Changed
+
+-   Bookmarks now save and restore the Single-Cell Expression settings.
+
 ## 1.2.7
 
 ### Changed
