@@ -58,6 +58,11 @@ export enum BookmarkStatePath {
     gOEnrichmentSelectedAspect = 'GOEnrichment.selectedAspect',
     clusteringLinkageFunction = 'Clustering.linkageFunction',
     clusteringDistanceMeasure = 'Clustering.distanceMeasure',
+    singleCellStrain = 'SingleCell.strain',
+    singleCellColorMode = 'SingleCell.colorMode',
+    singleCellTransformMode = 'SingleCell.transformMode',
+    singleCellAggregationMode = 'SingleCell.aggregationMode',
+    singleCellUseAlpha = 'SingleCell.useAlpha',
 }
 
 export const EMPTY_ARRAY = [];
