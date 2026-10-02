@@ -62,7 +62,6 @@ export enum BookmarkStatePath {
     singleCellColorMode = 'SingleCell.colorMode',
     singleCellTransformMode = 'SingleCell.transformMode',
     singleCellAggregationMode = 'SingleCell.aggregationMode',
-    singleCellShowLegend = 'SingleCell.showLegend',
     singleCellUseAlpha = 'SingleCell.useAlpha',
 }
 

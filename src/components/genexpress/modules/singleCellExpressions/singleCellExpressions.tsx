@@ -114,11 +114,11 @@ const SingleCellExpressions = ({
     const [aggregationMode, setAggregationMode] = useBookmarkableState<
         'average' | 'sum' | 'min' | 'max'
     >('average', BookmarkStatePath.singleCellAggregationMode);
-    const [showLegend, setShowLegend] = useBookmarkableState(
+    const [showLegend, setShowLegend] = useState(true);
+    const [useAlpha, setUseAlpha] = useBookmarkableState(
         true,
-        BookmarkStatePath.singleCellShowLegend,
+        BookmarkStatePath.singleCellUseAlpha,
     );
-    const [useAlpha, setUseAlpha] = useBookmarkableState(true, BookmarkStatePath.singleCellUseAlpha);
     const [isGeneDataModalOpen, setIsGeneDataModalOpen] = useState(false);
     const [displayControls, setDisplayControls] = useState({
         firstLevel: true,
