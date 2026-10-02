@@ -38,6 +38,8 @@ import { Gene } from 'redux/models/internal';
 import useReport from 'components/genexpress/common/reportBuilder/useReport';
 import { objectsArrayToTsv } from 'utils/reportUtils';
 import useSize from 'components/genexpress/common/useSize';
+import useBookmarkableState from 'components/genexpress/common/useBookmarkableState';
+import { BookmarkStatePath } from 'components/genexpress/common/constants';
 import HiddenControlsIndicator from 'components/genexpress/common/hiddenControlsIndicator/hiddenControlsIndicator';
 
 const DEFAULT_STRAIN = 'AX4';
@@ -74,7 +76,10 @@ const SingleCellExpressions = ({
 
     // State for strain selection
     const [availableStrains, setAvailableStrains] = useState<string[]>([]);
-    const [selectedStrain, setSelectedStrain] = useState<string>(getCurrentStrain());
+    const [selectedStrain, setSelectedStrain] = useBookmarkableState<string>(
+        getCurrentStrain(),
+        BookmarkStatePath.singleCellStrain,
+    );
     const [referenceBounds, setReferenceBounds] = useState<{
         minX: number;
         maxX: number;
@@ -98,13 +103,22 @@ const SingleCellExpressions = ({
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     // State for controls
-    const [colorMode, setColorMode] = useState<'expression' | 'time' | 'cell_type'>('expression');
-    const [transformMode, setTransformMode] = useState<'linear' | 'log1p'>('log1p');
-    const [aggregationMode, setAggregationMode] = useState<'average' | 'sum' | 'min' | 'max'>(
-        'average',
+    const [colorMode, setColorMode] = useBookmarkableState<'expression' | 'time' | 'cell_type'>(
+        'expression',
+        BookmarkStatePath.singleCellColorMode,
     );
-    const [showLegend, setShowLegend] = useState(true);
-    const [useAlpha, setUseAlpha] = useState(true);
+    const [transformMode, setTransformMode] = useBookmarkableState<'linear' | 'log1p'>(
+        'log1p',
+        BookmarkStatePath.singleCellTransformMode,
+    );
+    const [aggregationMode, setAggregationMode] = useBookmarkableState<
+        'average' | 'sum' | 'min' | 'max'
+    >('average', BookmarkStatePath.singleCellAggregationMode);
+    const [showLegend, setShowLegend] = useBookmarkableState(
+        true,
+        BookmarkStatePath.singleCellShowLegend,
+    );
+    const [useAlpha, setUseAlpha] = useBookmarkableState(true, BookmarkStatePath.singleCellUseAlpha);
     const [isGeneDataModalOpen, setIsGeneDataModalOpen] = useState(false);
     const [displayControls, setDisplayControls] = useState({
         firstLevel: true,
@@ -126,6 +140,9 @@ const SingleCellExpressions = ({
      * Load single-cell data when strain changes
      */
     useEffect(() => {
+        // Keep the data loader on the selected strain, including one restored from a bookmark.
+        setStrain(selectedStrain);
+
         const loadInitialData = async () => {
             try {
                 setError(null);
@@ -375,9 +392,7 @@ const SingleCellExpressions = ({
      * Handle strain selection change
      */
     const handleStrainChange = (event: SelectChangeEvent<unknown>) => {
-        const newStrain = event.target.value as string;
-        setStrain(newStrain);
-        setSelectedStrain(newStrain);
+        setSelectedStrain(event.target.value as string);
     };
 
     const cellCountDisplay = useMemo(() => {
