@@ -1,4 +1,4 @@
-import { ReactElement, useMemo, useRef, useEffect, useState } from 'react';
+import { ReactElement, useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { connect, ConnectedProps, useDispatch } from 'react-redux';
 import { MenuItem, SelectChangeEvent, FormControlLabel, Switch, Button } from '@mui/material';
 import UmapPlot, { UmapDataPoint, UmapPlotHandle, GeneExpressionData } from './umapPlot/umapPlot';
@@ -60,6 +60,13 @@ const DEFAULT_STRAIN = 'AX4';
 
 type SingleCellExpressionsProps = Record<string, never>;
 
+// The last marker comparison, bookmarked so opening the bookmark runs it again.
+type MarkersComparison = {
+    strain: string;
+    reference: CellSelectionReference;
+    cells: number[];
+};
+
 const mapStateToProps = (state: RootState) => ({
     selectedGenes: getSelectedGenes(state.genes),
     highlightedGenes: getHighlightedGenes(state.genes),
@@ -105,6 +112,8 @@ const SingleCellExpressions = ({
     const [umapCoordinates, setUmapCoordinates] = useState<UmapDataPoint[]>([]);
     const [geneNames, setGeneNames] = useState<string[]>([]); // Gene IDs (DDB_G...)
     const [geneSymbols, setGeneSymbols] = useState<string[]>([]); // Gene symbols (pspA, pspB...)
+    // Strain of the loaded umapCoordinates (selectedStrain changes before its data arrives).
+    const [loadedStrain, setLoadedStrain] = useState<string | null>(null);
     const [datasetInfo, setDatasetInfo] = useState<{
         strain: string;
         n_genes: number;
@@ -134,9 +143,19 @@ const SingleCellExpressions = ({
         BookmarkStatePath.singleCellUseAlpha,
     );
     const [isGeneDataModalOpen, setIsGeneDataModalOpen] = useState(false);
-    const [selectedCellIds, setSelectedCellIds] = useState<number[]>([]);
+    const [selectedCellIds, setSelectedCellIds] = useBookmarkableState<number[]>(
+        [],
+        BookmarkStatePath.singleCellSelectedCells,
+    );
     const selectedCellIdsSet = useMemo(() => new Set(selectedCellIds), [selectedCellIds]);
     const [isComparingCells, setIsComparingCells] = useState(false);
+    const [markersComparison, setMarkersComparison] =
+        useBookmarkableState<MarkersComparison | null>(
+            null,
+            BookmarkStatePath.singleCellMarkersComparison,
+        );
+    // The comparison last run, to tell a comparison restored from a bookmark from our own.
+    const ranMarkersComparisonRef = useRef<MarkersComparison | null>(null);
     const [displayControls, setDisplayControls] = useState({
         firstLevel: true,
         secondLevel: true,
@@ -198,6 +217,7 @@ const SingleCellExpressions = ({
                 }
 
                 setUmapCoordinates(points);
+                setLoadedStrain(selectedStrain);
                 setGeneNames(names);
                 setGeneSymbols(symbols);
                 setDatasetInfo(info);
@@ -406,49 +426,68 @@ const SingleCellExpressions = ({
     );
 
     /**
-     * Test the selected cells against a reference of the same strain and show the result in the
-     * differential expressions module.
+     * Test cells against a reference of the same strain and show the result in the differential
+     * expressions module. Needs the strain's cells loaded, for the cells' time points.
      */
-    const compareSelectedCells = async (reference: CellSelectionReference) => {
-        let referenceCells: number[] | undefined;
-        if (reference === 'sameTime') {
-            const selectedTimes = new Set(selectedCellIds.map((id) => umapCoordinates[id].time));
-            referenceCells = umapCoordinates
-                .filter((cell) => selectedTimes.has(cell.time))
-                .map((cell) => Number(cell.id));
-        }
+    const runMarkersComparison = useCallback(
+        async ({ strain, reference, cells }: MarkersComparison) => {
+            let referenceCells: number[] | undefined;
+            if (reference === 'sameTime') {
+                const selectedTimes = new Set(cells.map((id) => umapCoordinates[id].time));
+                referenceCells = umapCoordinates
+                    .filter((cell) => selectedTimes.has(cell.time))
+                    .map((cell) => Number(cell.id));
+            }
 
-        try {
-            setIsComparingCells(true);
-            const result = await compareCells({
-                strain: selectedStrain,
-                cells: selectedCellIds,
-                reference: referenceCells,
-            });
-            const name = getCellSelectionName(selectedStrain, reference, result.n_selected);
-            dispatch(
-                differentialExpressionCellSelectionResultAdded(
-                    toDifferentialExpression(result, name),
-                ),
-            );
-            dispatch(differentialExpressionSelected(CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID));
-            dispatch(fetchDifferentialExpressionGenes({ geneIds: result.genes }));
-            dispatch(
-                addInfoSnackbar(
-                    getCellSelectionMessage(
-                        selectedStrain,
-                        reference,
-                        result.n_selected,
-                        result.n_reference,
+            try {
+                setIsComparingCells(true);
+                const result = await compareCells({ strain, cells, reference: referenceCells });
+                const name = getCellSelectionName(strain, reference, result.n_selected);
+                dispatch(
+                    differentialExpressionCellSelectionResultAdded(
+                        toDifferentialExpression(result, name),
                     ),
-                ),
-            );
-        } catch (error) {
-            dispatch(handleError('Error comparing the selected cells.', error));
-        } finally {
-            setIsComparingCells(false);
-        }
+                );
+                dispatch(differentialExpressionSelected(CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID));
+                dispatch(fetchDifferentialExpressionGenes({ geneIds: result.genes }));
+                dispatch(
+                    addInfoSnackbar(
+                        getCellSelectionMessage(
+                            strain,
+                            reference,
+                            result.n_selected,
+                            result.n_reference,
+                        ),
+                    ),
+                );
+            } catch (error) {
+                dispatch(handleError('Error comparing the selected cells.', error));
+            } finally {
+                setIsComparingCells(false);
+            }
+        },
+        [umapCoordinates, dispatch],
+    );
+
+    const compareSelectedCells = (reference: CellSelectionReference) => {
+        const comparison = { strain: selectedStrain, reference, cells: selectedCellIds };
+        ranMarkersComparisonRef.current = comparison;
+        setMarkersComparison(comparison);
+        void runMarkersComparison(comparison);
     };
+
+    // Run a comparison restored from a bookmark once its strain's cells are loaded.
+    useEffect(() => {
+        if (
+            markersComparison == null ||
+            markersComparison === ranMarkersComparisonRef.current ||
+            markersComparison.strain !== loadedStrain
+        ) {
+            return;
+        }
+        ranMarkersComparisonRef.current = markersComparison;
+        void runMarkersComparison(markersComparison);
+    }, [markersComparison, loadedStrain, runMarkersComparison]);
 
     /**
      * Handle strain selection change
@@ -630,11 +669,7 @@ const SingleCellExpressions = ({
             >
                 <CellSelectionPanel
                     selectedCount={selectedCellIds.length}
-                    onCompare={
-                        isCellDeEnabled()
-                            ? (reference) => void compareSelectedCells(reference)
-                            : undefined
-                    }
+                    onCompare={isCellDeEnabled() ? compareSelectedCells : undefined}
                     onClear={() => setSelectedCellIds([])}
                     isComparing={isComparingCells}
                 />

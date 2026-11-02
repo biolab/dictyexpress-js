@@ -1,10 +1,17 @@
 import React from 'react';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import SingleCellExpressions from './singleCellExpressions';
 import * as dataLoader from './dataLoader';
-import { customRender, handleCommonRequests } from 'tests/test-utils';
-import { testState, generateGene, mockStore } from 'tests/mock';
+import {
+    customRender,
+    handleCommonRequests,
+    resolveStringifiedObjectPromise,
+    validateCreateStateRequest,
+} from 'tests/test-utils';
+import { testState, generateGene, mockStore, generateBackendBookmark } from 'tests/mock';
+import { loadBookmarkedState, saveBookmarkState } from 'managers/bookmarkStateManager';
+import { compareCells } from 'api';
 import { RootState } from 'redux/rootReducer';
 import * as errorUtils from 'utils/errorUtils';
 import * as singleCellExpressionsStore from 'redux/stores/singleCellExpressions';
@@ -25,6 +32,12 @@ vi.mock('./dataLoader', async () => {
         listAvailableStrains: vi.fn(),
     };
 });
+
+vi.mock('api', async () => ({
+    ...(await vi.importActual('api')),
+    compareCells: vi.fn(),
+    isCellDeEnabled: () => true,
+}));
 
 // Mock Vega-lite for canvas rendering
 vi.mock('vega-embed', () => ({
@@ -793,6 +806,63 @@ describe('SingleCellExpressions integration', () => {
 
             await waitFor(() => {
                 expect(screen.getAllByText('AX2').length).toBeGreaterThan(0);
+            });
+        });
+    });
+
+    describe('bookmarks', () => {
+        const bookmark = generateBackendBookmark();
+        bookmark.state.SingleCell = {
+            strain: 'AX4',
+            selectedCells: [1, 2, 5],
+            markersComparison: { strain: 'AX4', reference: 'sameTime', cells: [1, 2, 5] },
+        };
+
+        beforeEach(() => {
+            fetchMock.mockResponse((req) => {
+                if (req.url.includes('app-state')) {
+                    return resolveStringifiedObjectPromise(bookmark);
+                }
+                return (
+                    handleCommonRequests(req) ?? Promise.reject(new Error(`bad url: ${req.url}`))
+                );
+            });
+            (compareCells as ReturnType<typeof vi.fn>).mockResolvedValue({
+                strain: 'AX4',
+                n_selected: 3,
+                n_reference: 72,
+                genes: ['DDB_G0267412'],
+                symbols: ['pspA'],
+                log2_fold_change: [2],
+                cohens_d: [1.5],
+                neg_log10_pvalue: [10],
+                neg_log10_fdr: [9],
+                replicate_test: { status: 'ok' },
+            });
+        });
+
+        it('restores the selected cells and runs the bookmarked comparison again', async () => {
+            customRender(<SingleCellExpressions />, { initialState });
+            await screen.findByText('100 cells');
+
+            await act(() => loadBookmarkedState('bookmark-id', vi.fn()));
+
+            expect(await screen.findByText('3 cells selected')).toBeInTheDocument();
+            await waitFor(() => expect(compareCells).toHaveBeenCalledTimes(1));
+            // Same time points: every cell at the selected cells' times (1h, 2h).
+            const sameTime = Array.from({ length: nCells }, (_, i) => i).filter(
+                (i) => i % 4 === 1 || i % 4 === 2,
+            );
+            expect(compareCells).toHaveBeenCalledWith({
+                strain: 'AX4',
+                cells: [1, 2, 5],
+                reference: sameTime,
+            });
+
+            fetchMock.mockClear();
+            await saveBookmarkState(initialState);
+            await validateCreateStateRequest((bookmarkState) => {
+                expect(bookmarkState.SingleCell).toMatchObject(bookmark.state.SingleCell);
             });
         });
     });
