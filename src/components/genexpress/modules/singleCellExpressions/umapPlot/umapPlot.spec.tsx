@@ -7,6 +7,7 @@ import UmapPlot, {
     UmapDataPoint,
     UmapPlotHandle,
     isPointInBrush,
+    selectGroup,
 } from './umapPlot';
 
 const baseData: UmapDataPoint[] = [
@@ -321,5 +322,42 @@ describe('UmapPlot', () => {
         fireEvent.mouseUp(canvas);
 
         expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+
+    it('selects a group, or adds it to the selection, or removes it when all selected', () => {
+        expect(selectGroup([1, 2], new Set([5]), false)).toEqual([1, 2]);
+        expect(selectGroup([1, 2], new Set([5, 1]), true)).toEqual([5, 1, 2]);
+        expect(selectGroup([1, 2], new Set([5, 1, 2]), true)).toEqual([5]);
+        expect(selectGroup([1, 2], undefined, true)).toEqual([1, 2]);
+    });
+
+    it('selects the cells of a legend entry and shows the entry as selected', async () => {
+        const onSelectionChange = vi.fn();
+        const { rerender } = renderPlot({ colorMode: 'cell_type', onSelectionChange });
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Type A' }));
+        expect(onSelectionChange).toHaveBeenLastCalledWith([0, 2]);
+
+        rerender(
+            <UmapPlot
+                data={baseData}
+                colorMode="cell_type"
+                selectedCellIds={new Set([0, 2])}
+                onSelectionChange={onSelectionChange}
+            />,
+        );
+        expect(screen.getByRole('button', { name: 'Type A' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        fireEvent.click(screen.getByRole('button', { name: 'Type B' }), { shiftKey: true });
+        expect(onSelectionChange).toHaveBeenLastCalledWith([0, 2, 1]);
+    });
+
+    it('keeps legend entries as plain labels without a selection handler', async () => {
+        renderPlot({ colorMode: 'time' });
+
+        expect(await screen.findByText('0h')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: '0h' })).not.toBeInTheDocument();
     });
 });

@@ -188,8 +188,10 @@ export const singleCellInfo: ReactNode = (
                 view.
             </li>
             <li>
-                Shift + drag to select cells, then find their markers against the same time points
-                or all other cells. The result opens in Differential expression.
+                Shift + drag to select cells, or click a Time or Cell type legend entry to select
+                that group (Shift + click adds or removes it). Then find the cells&apos; markers
+                against the same time points or all other cells. The result opens in Differential
+                expression.
             </li>
         </ul>
         <p>

@@ -18,6 +18,8 @@ type CellSelectionPanelProps = {
     onCompare?: (reference: CellSelectionReference) => void;
     onClear: () => void;
     isComparing: boolean;
+    // False when the selection holds every cell of its time points, leaving no reference.
+    hasSameTimeReference?: boolean;
 };
 
 const CellSelectionPanel = ({
@@ -25,9 +27,12 @@ const CellSelectionPanel = ({
     onCompare,
     onClear,
     isComparing,
+    hasSameTimeReference = true,
 }: CellSelectionPanelProps): ReactElement => {
     if (selectedCount === 0) {
-        return <SelectionHint>Shift + drag to select cells</SelectionHint>;
+        return (
+            <SelectionHint>Shift + drag, or click a legend entry, to select cells</SelectionHint>
+        );
     }
 
     const clearButton = (
@@ -64,12 +69,18 @@ const CellSelectionPanel = ({
             </PanelHeader>
             {onCompare != null && (
                 <CompareButtons>
-                    <Tooltip title="Other cells from the time points of the selected cells, so developmental time doesn't dominate the ranking">
+                    <Tooltip
+                        title={
+                            hasSameTimeReference
+                                ? "Other cells from the time points of the selected cells, so developmental time doesn't dominate the ranking"
+                                : 'The selection holds every cell of its time points, so no other cells are left to compare with'
+                        }
+                    >
                         <span>
                             <CompareButton
                                 size="small"
                                 $primary
-                                disabled={isComparing}
+                                disabled={isComparing || !hasSameTimeReference}
                                 onClick={() => onCompare('sameTime')}
                             >
                                 Same time points

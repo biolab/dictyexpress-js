@@ -7,6 +7,7 @@ import {
     useState,
     forwardRef,
     useImperativeHandle,
+    useMemo,
 } from 'react';
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
@@ -19,6 +20,7 @@ import {
     TimeLegendItems,
     TimeLegendItem,
     TimeLegendDot,
+    LegendItemButton,
     ExpressionAlphaLegend,
     AlphaLegendTitle,
     AlphaGradientContainer,
@@ -199,6 +201,25 @@ const drawCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: numb
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI);
     ctx.fill();
+};
+
+/**
+ * Selection after clicking a legend entry: its group's cells, or with `add` the current
+ * selection plus the group (minus the group, if it was all selected already).
+ */
+export const selectGroup = (
+    groupCells: number[],
+    current: Set<number> | undefined,
+    add: boolean,
+): number[] => {
+    if (!add || current == null) {
+        return groupCells;
+    }
+    const group = new Set(groupCells);
+    if (groupCells.every((id) => current.has(id))) {
+        return Array.from(current).filter((id) => !group.has(id));
+    }
+    return Array.from(current).concat(groupCells.filter((id) => !current.has(id)));
 };
 
 const renderPoints = (
@@ -443,6 +464,56 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             Array<{ cellType: string; color: string }>
         >([]);
         const [showZoomHint, setShowZoomHint] = useState(false);
+
+        // Cell ids per time point and per cell type, for selecting a group from the legend.
+        const groupCells = useMemo(() => {
+            const groups = {
+                time: new Map<string, number[]>(),
+                cell_type: new Map<string, number[]>(),
+            };
+            for (const point of data) {
+                for (const field of ['time', 'cell_type'] as const) {
+                    const value = point[field];
+                    if (value == null) continue;
+                    const ids = groups[field].get(value) ?? [];
+                    ids.push(Number(point.id));
+                    groups[field].set(value, ids);
+                }
+            }
+            return groups;
+        }, [data]);
+
+        const renderLegendItem = (field: 'time' | 'cell_type', value: string, color: string) => {
+            const content = (
+                <>
+                    <TimeLegendDot $color={color} />
+                    <span>{value}</span>
+                </>
+            );
+            if (onSelectionChange == null) {
+                return <TimeLegendItem key={value}>{content}</TimeLegendItem>;
+            }
+            const cells = groupCells[field].get(value) ?? [];
+            const isSelected =
+                selectedCellIds != null &&
+                cells.length > 0 &&
+                cells.every((id) => selectedCellIds.has(id));
+            return (
+                <TimeLegendItem key={value}>
+                    <LegendItemButton
+                        type="button"
+                        $isSelected={isSelected}
+                        aria-pressed={isSelected}
+                        title="Click to select these cells, Shift + click to add or remove them"
+                        onClick={(event) =>
+                            onSelectionChange(selectGroup(cells, selectedCellIds, event.shiftKey))
+                        }
+                    >
+                        {content}
+                    </LegendItemButton>
+                </TimeLegendItem>
+            );
+        };
 
         // Use the colorMode from props
         const colorMode = colorModeProp;
@@ -1045,12 +1116,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Time</TimeLegendTitle>
                         <TimeLegendItems>
-                            {timeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.time}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.time}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {timeLegendItems.map((item) =>
+                                renderLegendItem('time', item.time, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}
@@ -1059,12 +1127,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Cell Type</TimeLegendTitle>
                         <TimeLegendItems>
-                            {cellTypeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.cellType}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.cellType}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {cellTypeLegendItems.map((item) =>
+                                renderLegendItem('cell_type', item.cellType, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}

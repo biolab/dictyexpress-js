@@ -498,6 +498,14 @@ const SingleCellExpressions = ({
         setSelectedCellIds([]);
     };
 
+    // "Same time points" needs unselected cells at the selected cells' time points.
+    const hasSameTimeReference = useMemo(() => {
+        const selectedTimes = new Set(selectedCellIds.map((id) => umapCoordinates[id]?.time));
+        return umapCoordinates.some(
+            (cell, index) => selectedTimes.has(cell.time) && !selectedCellIdsSet.has(index),
+        );
+    }, [selectedCellIds, selectedCellIdsSet, umapCoordinates]);
+
     const cellCountDisplay = useMemo(() => {
         return umapCoordinates.length > 0 ? `${umapCoordinates.length} cells` : '';
     }, [umapCoordinates.length]);
@@ -672,6 +680,7 @@ const SingleCellExpressions = ({
                     onCompare={isCellDeEnabled() ? compareSelectedCells : undefined}
                     onClear={() => setSelectedCellIds([])}
                     isComparing={isComparingCells}
+                    hasSameTimeReference={hasSameTimeReference}
                 />
             </UmapPlot>
 

@@ -84,6 +84,33 @@ export const TimeLegendItem = styled.div`
     color: #555;
 `;
 
+// A legend entry that selects its group's cells; tinted while the whole group is selected.
+export const LegendItemButton = styled.button<{ $isSelected: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin: 0 -4px;
+    padding: 0 4px;
+    border: none;
+    border-radius: 3px;
+    background: ${({ $isSelected }) => ($isSelected ? 'rgba(255, 152, 0, 0.18)' : 'none')};
+    font: inherit;
+    font-size: 12px;
+    color: #555;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: ${({ $isSelected }) =>
+            $isSelected ? 'rgba(255, 152, 0, 0.28)' : 'rgba(0, 0, 0, 0.06)'};
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgba(255, 152, 0, 0.6);
+    }
+`;
+
 export const TimeLegendDot = styled.div<{ $color: string }>`
     width: 8px;
     height: 8px;
