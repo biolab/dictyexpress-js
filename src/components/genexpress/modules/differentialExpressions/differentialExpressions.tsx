@@ -18,7 +18,6 @@ import DifferentialExpressionsVolcanoPlot from './differentialExpressionsVolcano
 import {
     DifferentialExpressionsContainer,
     DifferentialExpressionsControls,
-    DifferentialExpressionNote,
     ThresholdFormControl,
     ThresholdFormControlsContainer,
     VolcanoPlotContainer,
@@ -495,11 +494,6 @@ positives.
                         <HiddenControlsIndicator />
                     )}
                 </DifferentialExpressionsControls>
-                {selectedDifferentialExpression?.note != null && (
-                    <DifferentialExpressionNote>
-                        {selectedDifferentialExpression.note}
-                    </DifferentialExpressionNote>
-                )}
                 {selectedDifferentialExpression != null && disableSelection && (
                     <Box component="span" sx={{ fontWeight: 'bold' }}>
                         The organism in Time series and Gene Selection does not match the organism

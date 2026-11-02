@@ -1,27 +1,13 @@
-import { CellDeResponse, ReplicateTest } from 'api/cellDeApi';
+import { CellDeResponse } from 'api/cellDeApi';
 import { DifferentialExpression } from 'redux/models/internal';
 import { CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID } from 'redux/stores/differentialExpressions';
 
 /*
  * Selected cells are a marker ranking: genes are ranked by Cohen's d, which doesn't grow with
  * the number of cells. The gene table's p-values come from a pseudobulk test across the
- * strain's biological replicates (separately grown fluorescent lines, or separate libraries),
- * not from treating each cell as a replicate. They stay exploratory because the cells were
- * picked from the same data.
+ * strain's biological replicates, not from treating each cell as a replicate (explained in the
+ * module's info, moduleInfoContent.tsx).
  */
-export const getCellSelectionNote = (replicateTest: ReplicateTest): string => {
-    const ranking = "Genes ranked by effect size (Cohen's d).";
-    if (replicateTest.status !== 'ok') {
-        return `${ranking} No p-values: ${replicateTest.status}`;
-    }
-    const used = (replicateTest.replicates ?? []).filter((replicate) => replicate.used);
-    return (
-        `${ranking} P-values in the gene table: pseudobulk test across ${used.length} ` +
-        `biological replicates (${used.map((replicate) => replicate.name).join(', ')}), ` +
-        'exploratory because the cells were selected from the same data.'
-    );
-};
-
 const LOGFC_THRESHOLD = 1;
 // Cohen's conventional "large" effect.
 const EFFECT_SIZE_THRESHOLD = 0.8;
@@ -79,7 +65,6 @@ export const toDifferentialExpression = (
         slug: 'single-cell-selection',
         created: new Date().toISOString(),
         kind: 'markers',
-        note: getCellSelectionNote(result.replicate_test),
         logfc_threshold: LOGFC_THRESHOLD,
         effect_size_threshold: EFFECT_SIZE_THRESHOLD,
         prob_field: 'p value',

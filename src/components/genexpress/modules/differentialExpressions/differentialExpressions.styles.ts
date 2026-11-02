@@ -28,12 +28,6 @@ export const ThresholdFormControl = styled(FormControl)`
     margin: 0 10px;
 `;
 
-export const DifferentialExpressionNote = styled.div`
-    font-size: 12px;
-    color: rgba(0, 0, 0, 0.6);
-    margin: 0 0 4px 2px;
-`;
-
 export const VolcanoPlotContainer = styled.div`
     flex-grow: 1;
     overflow: hidden;

@@ -1,6 +1,5 @@
 import {
     getCellSelectionMessage,
-    getCellSelectionNote,
     getCellSelectionName,
     toDifferentialExpression,
 } from './cellSelectionDifferentialExpression';
@@ -52,7 +51,6 @@ describe('cellSelectionDifferentialExpression', () => {
 
         expect(differentialExpression.id).toBe(CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID);
         expect(differentialExpression.kind).toBe('markers');
-        expect(differentialExpression.note).toBe(getCellSelectionNote(result.replicate_test));
         expect(differentialExpression.json.replicate_pvalue).toEqual(result.replicate_pvalue);
         expect(differentialExpression.json.replicate_fdr).toEqual(result.replicate_fdr);
         expect(differentialExpression.json.gene_id).toEqual(result.genes);
@@ -62,22 +60,6 @@ describe('cellSelectionDifferentialExpression', () => {
         expect(differentialExpression.json.neg_log10_pvalue).toEqual(result.neg_log10_pvalue);
         expect(differentialExpression.json.neg_log10_fdr).toEqual(result.neg_log10_fdr);
         expect(differentialExpression.output.species).toBe('Dictyostelium discoideum');
-    });
-
-    it('names the replicates behind the p-values, or says why there are none', () => {
-        expect(getCellSelectionNote(result.replicate_test)).toBe(
-            "Genes ranked by effect size (Cohen's d). P-values in the gene table: pseudobulk " +
-                'test across 2 biological replicates (act15GFP, mCerulean), exploratory ' +
-                'because the cells were selected from the same data.',
-        );
-        expect(
-            getCellSelectionNote({
-                status: 'Fewer than 2 replicates have at least 10 selected and 10 reference cells.',
-            }),
-        ).toBe(
-            "Genes ranked by effect size (Cohen's d). No p-values: Fewer than 2 replicates " +
-                'have at least 10 selected and 10 reference cells.',
-        );
     });
 
     it('counts genes past both the fold change and effect size thresholds', () => {

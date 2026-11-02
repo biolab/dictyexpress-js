@@ -112,8 +112,6 @@ export type DifferentialExpression = {
     prob_threshold: number;
     up_regulated: number;
     down_regulated: number;
-    // Shown under the selector, e.g. how to read a result computed in the app.
-    note?: string;
     // A marker ranking plots |Cohen's d| instead of -log10(prob); see
     // singleCellExpressions/cellSelectionDifferentialExpression.ts.
     kind?: 'markers';
