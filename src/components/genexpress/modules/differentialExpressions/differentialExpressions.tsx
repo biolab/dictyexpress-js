@@ -18,6 +18,7 @@ import DifferentialExpressionsVolcanoPlot from './differentialExpressionsVolcano
 import {
     DifferentialExpressionsContainer,
     DifferentialExpressionsControls,
+    DifferentialExpressionNote,
     ThresholdFormControl,
     ThresholdFormControlsContainer,
     VolcanoPlotContainer,
@@ -26,7 +27,7 @@ import VolcanoPointSelectionModal from './volcanoPointsSelectionModal/volcanoPoi
 import { RootState } from 'redux/rootReducer';
 import { getGenesById, getHighlightedGenesIds, getSelectedGenesIds } from 'redux/stores/genes';
 import { DifferentialExpression, Thresholds, VolcanoPoint } from 'redux/models/internal';
-import { getMinMax, logOfBase } from 'utils/math';
+import { formatNegLog10AsP, getMinMax, logOfBase } from 'utils/math';
 import {
     differentialExpressionSelected,
     getDifferentialExpressions,
@@ -74,6 +75,31 @@ const StyledDictySelect = styled(DictySelect)`
     min-width: ${minSelectWidth}px;
 `;
 
+const getDefaultThresholds = (
+    differentialExpression: DifferentialExpression | null,
+): Thresholds => {
+    if (differentialExpression == null) {
+        return { pValue: 0.01, pValueLog: 2, fc: 2, fcLog: 1 };
+    }
+    const fcThresholds = {
+        fc: _.round(2 ** differentialExpression.logfc_threshold, ROUND_PRECISION),
+        fcLog: differentialExpression.logfc_threshold,
+    };
+    if (differentialExpression.kind === 'markers') {
+        // pValueLog holds the y threshold, here |Cohen's d|.
+        return {
+            pValue: differentialExpression.prob_threshold,
+            pValueLog: differentialExpression.effect_size_threshold ?? 0.8,
+            ...fcThresholds,
+        };
+    }
+    return {
+        pValue: differentialExpression.prob_threshold,
+        pValueLog: _.round(-logOfBase(differentialExpression.prob_threshold, 10), ROUND_PRECISION),
+        ...fcThresholds,
+    };
+};
+
 const DifferentialExpressions = ({
     selectedTimeSeries,
     selectedDifferentialExpression,
@@ -106,23 +132,24 @@ const DifferentialExpressions = ({
             ? selectedDifferentialExpression.prob_field
             : 'p value';
     const probFieldLabel = probField.toUpperCase();
+    // A marker ranking (selected single cells) plots an effect size instead of a probability;
+    // its threshold then lives in pValueLog, the y threshold.
+    const isMarkerRanking = selectedDifferentialExpression?.kind === 'markers';
+    const yAxisLabel = isMarkerRanking ? "|Cohen's d|" : `-log10(${probFieldLabel})`;
 
-    const defaultThresholds: Thresholds = useStateWithEffect(() => {
-        if (selectedDifferentialExpression == null) {
-            return { pValue: 0.01, pValueLog: 2, fc: 2, fcLog: 1 };
-        }
-        return {
-            pValue: selectedDifferentialExpression.prob_threshold,
-            pValueLog: _.round(
-                -logOfBase(selectedDifferentialExpression.prob_threshold, 10),
-                ROUND_PRECISION,
-            ),
-            fc: _.round(2 ** selectedDifferentialExpression.logfc_threshold, ROUND_PRECISION),
-            fcLog: selectedDifferentialExpression.logfc_threshold,
-        };
-    }, [selectedDifferentialExpression]);
+    const defaultThresholds: Thresholds = useStateWithEffect(
+        () => getDefaultThresholds(selectedDifferentialExpression),
+        [selectedDifferentialExpression],
+    );
 
     const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
+
+    // A -log10(p) threshold means nothing as an effect size threshold and vice versa. Computed
+    // here rather than read from defaultThresholds, which only catches up a render later.
+    useEffect(() => {
+        setThresholds(getDefaultThresholds(selectedDifferentialExpression));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isMarkerRanking]);
 
     const getLogProbLimit = (data: { logProbValue: number }[]): number => {
         const HIGHEST_CALCULABLE_LOG_PROB = -logOfBase(Number.MIN_VALUE, 10);
@@ -145,8 +172,25 @@ const DifferentialExpressions = ({
             return;
         }
 
-        const tempVolcanoData: Omit<VolcanoPoint, 'logProbFiniteValue'>[] =
-            selectedDifferentialExpression.json.gene_id.map((geneId: string, index: number) => {
+        const { json } = selectedDifferentialExpression;
+        const tempVolcanoData: Omit<VolcanoPoint, 'logProbFiniteValue'>[] = json.gene_id.map(
+            (geneId: string, index: number) => {
+                if (selectedDifferentialExpression.kind === 'markers') {
+                    const effectSize: number = json.cohens_d[index];
+                    return {
+                        geneId,
+                        logFcValue: json.logfc[index],
+                        logProbValue: Math.abs(effectSize),
+                        probValue: 10 ** -json.neg_log10_pvalue[index],
+                        effectSize,
+                        replicatePValue: json.replicate_pvalue?.[index] ?? null,
+                        replicateFdr: json.replicate_fdr?.[index] ?? null,
+                        negLog10Prob: json.neg_log10_pvalue[index],
+                        negLog10Fdr: json.neg_log10_fdr[index],
+                        geneName: genesById[geneId]?.name ?? geneId,
+                    };
+                }
+
                 const probValue =
                     selectedDifferentialExpression.json[selectedDifferentialExpression.prob_field][
                         index
@@ -160,7 +204,8 @@ const DifferentialExpressions = ({
                     geneName: genesById[geneId]?.name ?? geneId,
                 };
                 return volcanoDatum;
-            });
+            },
+        );
 
         const logProbLimit = getLogProbLimit(tempVolcanoData);
         const volcanoData = _.map(tempVolcanoData, (datum) => {
@@ -199,6 +244,17 @@ const DifferentialExpressions = ({
     }, [width]);
 
     const getCaption = useCallback((): string => {
+        if (isMarkerRanking) {
+            return `
+Marker genes of selected single cells (${selectedDifferentialExpression?.name ?? ''}): the
+x-axis is the log2 fold change of mean log-normalized expression between the selected cells
+and the reference cells, the y-axis is the absolute effect size (Cohen's d, with the
+standard deviation averaged over both groups). Markers of the selected cells are in the upper
+right, genes lower in them than in the reference in the upper left. P-values come from a
+pseudobulk test across biological replicates (limma, paired by replicate) and are
+exploratory because the cells were selected from the same data.
+            `.trim();
+        }
         return `
 Differential expression: The x-axis indicates the log2 value of fold-change in
 differential expression ${selectedDifferentialExpression?.name ?? ''}. The ${probFieldLabel} on the
@@ -212,7 +268,7 @@ are located in the upper left square (these have a negative log fold value).
 Genes in the lower left and right squares of the graph are probably false
 positives.
         `.trim();
-    }, [probFieldLabel, selectedDifferentialExpression]);
+    }, [isMarkerRanking, probFieldLabel, selectedDifferentialExpression]);
 
     useReport(
         async (processFile) => {
@@ -236,10 +292,23 @@ positives.
             if (volcanoPoints.length === 0) {
                 return;
             }
-            const dataTable = volcanoPoints.map((volcanoPoint) => ({
-                ...volcanoPoint,
-                gene_symbol: volcanoPoint.geneName,
-            }));
+            const dataTable = isMarkerRanking
+                ? volcanoPoints.map((volcanoPoint) => ({
+                      gene_id: volcanoPoint.geneId,
+                      gene_symbol: volcanoPoint.geneName,
+                      log2_fold_change: volcanoPoint.logFcValue,
+                      cohens_d: volcanoPoint.effectSize,
+                      p_value_replicates: volcanoPoint.replicatePValue ?? '',
+                      fdr_replicates: volcanoPoint.replicateFdr ?? '',
+                      p_value_per_cell_not_calibrated: formatNegLog10AsP(
+                          volcanoPoint.negLog10Prob ?? 0,
+                      ),
+                      fdr_per_cell_not_calibrated: formatNegLog10AsP(volcanoPoint.negLog10Fdr ?? 0),
+                  }))
+                : volcanoPoints.map((volcanoPoint) => ({
+                      ...volcanoPoint,
+                      gene_symbol: volcanoPoint.geneName,
+                  }));
             processFile('Differential Expressions/table.tsv', objectsArrayToTsv(dataTable), false);
             if (chartRef.current != null) {
                 processFile(
@@ -255,7 +324,7 @@ positives.
                 processFile('Differential Expressions/caption.txt', getCaption(), false);
             }
         },
-        [getCaption, selectedDifferentialExpression, volcanoPoints],
+        [getCaption, isMarkerRanking, selectedDifferentialExpression, volcanoPoints],
     );
 
     const handleDifferentialExpressionsOnChange = (event: SelectChangeEvent<unknown>): void => {
@@ -396,16 +465,16 @@ positives.
                                     {getThresholdFormControl('fcLog', 'log2(Fold Change)')}
                                 </>
                             )}
-                            {displayThresholdControls.firstLevel &&
-                                getThresholdFormControl('pValue', probFieldLabel)}
+                            {isMarkerRanking
+                                ? displayThresholdControls.firstLevel &&
+                                  getThresholdFormControl('pValueLog', yAxisLabel)
+                                : displayThresholdControls.firstLevel &&
+                                  getThresholdFormControl('pValue', probFieldLabel)}
 
-                            {displayThresholdControls.secondLevel && (
+                            {!isMarkerRanking && displayThresholdControls.secondLevel && (
                                 <>
                                     <SwapHoriz />
-                                    {getThresholdFormControl(
-                                        'pValueLog',
-                                        `-log10(${probFieldLabel})`,
-                                    )}
+                                    {getThresholdFormControl('pValueLog', yAxisLabel)}
                                 </>
                             )}
                             {hasOutliers && displayThresholdControls.firstLevel && (
@@ -426,6 +495,11 @@ positives.
                         <HiddenControlsIndicator />
                     )}
                 </DifferentialExpressionsControls>
+                {selectedDifferentialExpression?.note != null && (
+                    <DifferentialExpressionNote>
+                        {selectedDifferentialExpression.note}
+                    </DifferentialExpressionNote>
+                )}
                 {selectedDifferentialExpression != null && disableSelection && (
                     <Box component="span" sx={{ fontWeight: 'bold' }}>
                         The organism in Time series and Gene Selection does not match the organism
@@ -435,7 +509,10 @@ positives.
                 {volcanoPoints.length > 0 && (
                     <VolcanoPlotContainer>
                         <DifferentialExpressionsVolcanoPlot
-                            probField={probFieldLabel}
+                            // The plot builds its Vega spec (axis title included) once on
+                            // mount, so remount it when the y-axis changes.
+                            key={yAxisLabel}
+                            yAxisLabel={yAxisLabel}
                             data={volcanoPoints}
                             thresholds={thresholds}
                             highlightedGenesIds={highlightedGenesIds}
@@ -454,6 +531,7 @@ positives.
                         (selectedDifferentialExpression as DifferentialExpression).name
                     }
                     probFieldLabel={probFieldLabel}
+                    isMarkerRanking={isMarkerRanking}
                     handleOnClose={(): void => setVolcanoPointSelectionModalOpened(false)}
                     volcanoPoints={selectedVolcanoPoints}
                 />

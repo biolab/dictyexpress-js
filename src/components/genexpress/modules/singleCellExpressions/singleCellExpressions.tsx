@@ -25,13 +25,27 @@ import {
     InfoRow,
 } from './singleCellExpressions.styles';
 import GeneDataStatusModal from './geneDataStatusModal/geneDataStatusModal';
+import {
+    CellSelectionReference,
+    getCellSelectionMessage,
+    getCellSelectionName,
+    toDifferentialExpression,
+} from './cellSelectionDifferentialExpression';
+import CellSelectionPanel from './cellSelectionPanel/cellSelectionPanel';
 import { RootState } from 'redux/rootReducer';
 import { getSelectedGenes, getHighlightedGenes } from 'redux/stores/genes';
 import {
     singleCellExpressionsFetchStarted,
     singleCellExpressionsFetchEnded,
 } from 'redux/stores/singleCellExpressions';
-import { addSnackbar } from 'redux/stores/notifications';
+import { addInfoSnackbar, addSnackbar } from 'redux/stores/notifications';
+import {
+    CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID,
+    differentialExpressionCellSelectionResultAdded,
+    differentialExpressionSelected,
+} from 'redux/stores/differentialExpressions';
+import { fetchDifferentialExpressionGenes } from 'redux/epics/epicsActions';
+import { compareCells, isCellDeEnabled } from 'api';
 import DictySelect from 'components/genexpress/common/dictySelect/dictySelect';
 import { handleError } from 'utils/errorUtils';
 import { Gene } from 'redux/models/internal';
@@ -120,6 +134,9 @@ const SingleCellExpressions = ({
         BookmarkStatePath.singleCellUseAlpha,
     );
     const [isGeneDataModalOpen, setIsGeneDataModalOpen] = useState(false);
+    const [selectedCellIds, setSelectedCellIds] = useState<number[]>([]);
+    const selectedCellIdsSet = useMemo(() => new Set(selectedCellIds), [selectedCellIds]);
+    const [isComparingCells, setIsComparingCells] = useState(false);
     const [displayControls, setDisplayControls] = useState({
         firstLevel: true,
         secondLevel: true,
@@ -389,10 +406,57 @@ const SingleCellExpressions = ({
     );
 
     /**
+     * Test the selected cells against a reference of the same strain and show the result in the
+     * differential expressions module.
+     */
+    const compareSelectedCells = async (reference: CellSelectionReference) => {
+        let referenceCells: number[] | undefined;
+        if (reference === 'sameTime') {
+            const selectedTimes = new Set(selectedCellIds.map((id) => umapCoordinates[id].time));
+            referenceCells = umapCoordinates
+                .filter((cell) => selectedTimes.has(cell.time))
+                .map((cell) => Number(cell.id));
+        }
+
+        try {
+            setIsComparingCells(true);
+            const result = await compareCells({
+                strain: selectedStrain,
+                cells: selectedCellIds,
+                reference: referenceCells,
+            });
+            const name = getCellSelectionName(selectedStrain, reference, result.n_selected);
+            dispatch(
+                differentialExpressionCellSelectionResultAdded(
+                    toDifferentialExpression(result, name),
+                ),
+            );
+            dispatch(differentialExpressionSelected(CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID));
+            dispatch(fetchDifferentialExpressionGenes({ geneIds: result.genes }));
+            dispatch(
+                addInfoSnackbar(
+                    getCellSelectionMessage(
+                        selectedStrain,
+                        reference,
+                        result.n_selected,
+                        result.n_reference,
+                    ),
+                ),
+            );
+        } catch (error) {
+            dispatch(handleError('Error comparing the selected cells.', error));
+        } finally {
+            setIsComparingCells(false);
+        }
+    };
+
+    /**
      * Handle strain selection change
      */
     const handleStrainChange = (event: SelectChangeEvent<unknown>) => {
         setSelectedStrain(event.target.value as string);
+        // Cell indices refer to a strain's own cells, so a selection can't carry over.
+        setSelectedCellIds([]);
     };
 
     const cellCountDisplay = useMemo(() => {
@@ -560,8 +624,21 @@ const SingleCellExpressions = ({
                 geneExpressionData={geneExpressionData}
                 totalGenesSelected={genesToDisplay.length}
                 fixedBounds={referenceBounds}
+                selectedCellIds={selectedCellIdsSet}
+                onSelectionChange={setSelectedCellIds}
                 ref={chartRef}
-            />
+            >
+                <CellSelectionPanel
+                    selectedCount={selectedCellIds.length}
+                    onCompare={
+                        isCellDeEnabled()
+                            ? (reference) => void compareSelectedCells(reference)
+                            : undefined
+                    }
+                    onClear={() => setSelectedCellIds([])}
+                    isComparing={isComparingCells}
+                />
+            </UmapPlot>
 
             <InfoRow>
                 <Button size="small" style={{ pointerEvents: 'none' }}>

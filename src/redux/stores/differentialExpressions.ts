@@ -1,8 +1,18 @@
 import { Storage } from '@genialis/resolwe/dist/api/types/rest';
-import { createSlice, PayloadAction, createSelector, combineReducers } from '@reduxjs/toolkit';
+import {
+    createSlice,
+    PayloadAction,
+    createSelector,
+    combineReducers,
+    original,
+} from '@reduxjs/toolkit';
 import _ from 'lodash';
 import { DifferentialExpression, DifferentialExpressionsById } from '../models/internal';
 import createIsFetchingSlice from './fetch';
+
+// Result of comparing cells selected in the single-cell module. Real differential expressions
+// are Resolwe data with positive ids; each new comparison replaces this one.
+export const CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID = -1;
 
 const differentialExpressionsByIdInitialState = {} as DifferentialExpressionsById;
 const differentialExpressionsByIdSlice = createSlice({
@@ -10,12 +20,22 @@ const differentialExpressionsByIdSlice = createSlice({
     initialState: differentialExpressionsByIdInitialState,
     reducers: {
         fetchSucceeded: (
-            _state,
+            state,
             action: PayloadAction<DifferentialExpression[]>,
         ): DifferentialExpressionsById => {
-            return _.keyBy(action.payload, (differentialExpression) =>
-                differentialExpression.id.toString(),
+            const byId: DifferentialExpressionsById = _.keyBy(
+                action.payload,
+                (differentialExpression) => differentialExpression.id.toString(),
             );
+            // Keep a cell selection result made before the list arrived.
+            const cellSelection = original(state)?.[CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID];
+            if (cellSelection != null) {
+                byId[CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID] = cellSelection;
+            }
+            return byId;
+        },
+        cellSelectionResultAdded: (state, action: PayloadAction<DifferentialExpression>) => {
+            state[CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID] = action.payload;
         },
         storageFetchSucceeded: (
             state,
@@ -74,6 +94,7 @@ export const {
 export const {
     fetchSucceeded: differentialExpressionsFetchSucceeded,
     storageFetchSucceeded: differentialExpressionStorageFetchSucceeded,
+    cellSelectionResultAdded: differentialExpressionCellSelectionResultAdded,
 } = differentialExpressionsByIdSlice.actions;
 
 export type DifferentialExpressionsState = ReturnType<typeof differentialExpressionsReducer>;

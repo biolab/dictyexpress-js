@@ -86,9 +86,17 @@ export type VolcanoPoint = {
     geneId: Gene['feature_id'];
     geneName: Gene['feature_id'];
     logFcValue: number;
+    // The plotted y value: -log10(prob), or |Cohen's d| for a marker ranking.
     logProbValue: number;
     logProbFiniteValue: number;
     probValue: number;
+    // Marker rankings only: Cohen's d, the pseudobulk test across replicates (null when not
+    // tested), and the per-cell test, whose p-values are far below 1e-308 and kept as -log10.
+    effectSize?: number;
+    replicatePValue?: number | null;
+    replicateFdr?: number | null;
+    negLog10Prob?: number;
+    negLog10Fdr?: number;
 };
 
 export type Thresholds = {
@@ -104,6 +112,12 @@ export type DifferentialExpression = {
     prob_threshold: number;
     up_regulated: number;
     down_regulated: number;
+    // Shown under the selector, e.g. how to read a result computed in the app.
+    note?: string;
+    // A marker ranking plots |Cohen's d| instead of -log10(prob); see
+    // singleCellExpressions/cellSelectionDifferentialExpression.ts.
+    kind?: 'markers';
+    effect_size_threshold?: number;
 } & DataDifferentialExpression &
     Partial<Storage['json']>;
 

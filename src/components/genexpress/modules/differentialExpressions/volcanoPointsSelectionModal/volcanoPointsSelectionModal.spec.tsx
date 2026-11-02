@@ -162,4 +162,43 @@ describe('volcanoPointsSelectionModal', () => {
             ]);
         });
     });
+
+    describe('marker ranking', () => {
+        it('shows effect sizes and replicate p-values instead of the probability column', async () => {
+            initialState = testState();
+            initialState.genes.byId = genesById;
+            mockedStore = mockStore(initialState);
+            const markerPoints = volcanoPoints.slice(0, 2).map((point, index) => ({
+                ...point,
+                logProbValue: 1.9,
+                probValue: 0,
+                effectSize: index === 0 ? -1.9 : 0.4,
+                replicatePValue: index === 0 ? 0.000123456 : null,
+                replicateFdr: index === 0 ? 0.00456789 : null,
+                negLog10Prob: 8661.5,
+                negLog10Fdr: 8661.2,
+            }));
+
+            customRender(
+                <VolcanoPointsSelectionModal
+                    volcanoPoints={markerPoints}
+                    differentialExpressionName="Markers"
+                    handleOnClose={mockedOnClose}
+                    probFieldLabel="P VALUE"
+                    isMarkerRanking
+                />,
+                { mockedStore },
+            );
+
+            expect(await screen.findByText("Cohen's d")).toBeInTheDocument();
+            expect(screen.getByText('P value (replicates)')).toBeInTheDocument();
+            expect(screen.getByText('FDR (replicates)')).toBeInTheDocument();
+            expect(screen.queryByText('P VALUE')).toBeNull();
+            expect(screen.getByText('-1.9')).toBeInTheDocument();
+            expect(screen.getByText('0.000123')).toBeInTheDocument();
+            expect(screen.getByText('0.00457')).toBeInTheDocument();
+            // An untested gene has no p-value.
+            expect(screen.getAllByText('–')).toHaveLength(2);
+        });
+    });
 });

@@ -1,8 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createRef } from 'react';
 import type { ComponentProps } from 'react';
 import { vi } from 'vitest';
-import UmapPlot, { GeneExpressionData, UmapDataPoint, UmapPlotHandle } from './umapPlot';
+import UmapPlot, {
+    GeneExpressionData,
+    UmapDataPoint,
+    UmapPlotHandle,
+    isPointInBrush,
+} from './umapPlot';
 
 const baseData: UmapDataPoint[] = [
     { id: '0', x: 0, y: 0, tag: 'cell_1', time: '0h', cell_type: 'Type A' },
@@ -24,6 +29,7 @@ const createCanvasContext = () => {
     const context: Partial<CanvasRenderingContext2D> = {
         setTransform: vi.fn(),
         fillRect: vi.fn(),
+        strokeRect: vi.fn(),
         beginPath: vi.fn(),
         arc: vi.fn(),
         moveTo: vi.fn(),
@@ -155,6 +161,8 @@ describe('UmapPlot', () => {
             geneExpressionData,
             totalGenesSelected,
             fixedBounds,
+            selectedCellIds,
+            onSelectionChange,
         } = props;
 
         return render(
@@ -169,6 +177,8 @@ describe('UmapPlot', () => {
                 geneExpressionData={geneExpressionData}
                 totalGenesSelected={totalGenesSelected}
                 fixedBounds={fixedBounds}
+                selectedCellIds={selectedCellIds}
+                onSelectionChange={onSelectionChange}
             />,
         );
     };
@@ -243,5 +253,73 @@ describe('UmapPlot', () => {
         const canvas = ref.current?.getCanvas();
         expect(canvas).toBeInstanceOf(HTMLCanvasElement);
         expect(ref.current?.exportAsPNG()).toBe('data:image/png;base64,fake');
+    });
+
+    it('checks whether a point lies inside a brush drawn in any direction', () => {
+        const brush = { startX: 100, startY: 80, endX: 20, endY: 10 };
+
+        expect(isPointInBrush(50, 50, brush)).toBe(true);
+        expect(isPointInBrush(100, 80, brush)).toBe(true);
+        expect(isPointInBrush(101, 50, brush)).toBe(false);
+        expect(isPointInBrush(50, 5, brush)).toBe(false);
+    });
+
+    it('selects the cells inside a shift-drag rectangle', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        // In a 400x300 canvas with 40px padding the cells are drawn at
+        // (40, 150), (200, 40) and (360, 260).
+        render(<UmapPlot ref={ref} data={baseData} onSelectionChange={onSelectionChange} />);
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+
+        fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, shiftKey: true });
+        fireEvent.mouseMove(canvas, { clientX: 250, clientY: 200 });
+        fireEvent.mouseUp(canvas);
+
+        expect(onSelectionChange).toHaveBeenCalledWith([0, 1]);
+    });
+
+    it('keeps the rectangle when the drag ends outside the plot, clamped to its edge', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        render(<UmapPlot ref={ref} data={baseData} onSelectionChange={onSelectionChange} />);
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+
+        // From inside the plot to far past its bottom-right corner (400x300).
+        fireEvent.mouseDown(canvas, { clientX: 100, clientY: 100, shiftKey: true });
+        fireEvent.mouseLeave(canvas);
+        fireEvent.mouseMove(window, { clientX: 2000, clientY: 2000 });
+        fireEvent.mouseUp(window);
+
+        // Cells at (200, 40) and (40, 150) are outside, (360, 260) is inside the clamped box.
+        expect(onSelectionChange).toHaveBeenCalledWith([2]);
+    });
+
+    it('pans instead of selecting when shift is not held', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        render(<UmapPlot ref={ref} data={baseData} onSelectionChange={onSelectionChange} />);
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+
+        fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0 });
+        fireEvent.mouseMove(canvas, { clientX: 250, clientY: 200 });
+        fireEvent.mouseUp(canvas);
+
+        expect(onSelectionChange).not.toHaveBeenCalled();
     });
 });
