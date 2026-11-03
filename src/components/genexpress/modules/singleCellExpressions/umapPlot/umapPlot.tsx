@@ -1,11 +1,13 @@
 import {
     ReactElement,
+    ReactNode,
     useRef,
     useEffect,
     useCallback,
     useState,
     forwardRef,
     useImperativeHandle,
+    useMemo,
 } from 'react';
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
@@ -18,12 +20,14 @@ import {
     TimeLegendItems,
     TimeLegendItem,
     TimeLegendDot,
+    LegendItemButton,
     ExpressionAlphaLegend,
     AlphaLegendTitle,
     AlphaGradientContainer,
     AlphaGradientBar,
     AlphaLabel,
 } from './umapPlot.styles';
+import { GEN_GREY, GEN_ORANGE } from 'components/genexpress/common/theming/theming';
 
 export interface UmapDataPoint {
     id: string;
@@ -57,6 +61,8 @@ type TooltipPointer = {
     clientY: number;
 };
 
+type BrushRect = { startX: number; startY: number; endX: number; endY: number };
+
 // Helpers for color and drawing
 const ZERO_COLOR = '#e8e8e8';
 const TIME_COLORS = ['#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c7eb3'];
@@ -64,6 +70,13 @@ const TIME_COLORS = ['#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c
 const CELL_TYPE_COLORS = ['#e45a31', '#2f7db1'];
 
 const MAX_TOOLTIP_GENES = 5;
+
+// Selected cells get an orange glow (outer, inner halo) and keep their own color, so the
+// other cells stay readable around them.
+const SELECTION_GLOW = [
+    { extraRadius: 4, alpha: 0.18 },
+    { extraRadius: 2, alpha: 0.45 },
+];
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -178,10 +191,35 @@ const buildCellTypeColorCache = (data: UmapDataPoint[]): string[] => {
     return cache;
 };
 
+export const isPointInBrush = (x: number, y: number, brush: BrushRect): boolean =>
+    x >= Math.min(brush.startX, brush.endX) &&
+    x <= Math.max(brush.startX, brush.endX) &&
+    y >= Math.min(brush.startY, brush.endY) &&
+    y <= Math.max(brush.startY, brush.endY);
+
 const drawCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI);
     ctx.fill();
+};
+
+/**
+ * Selection after clicking a legend entry: its group's cells, or with `add` the current
+ * selection plus the group (minus the group, if it was all selected already).
+ */
+export const selectGroup = (
+    groupCells: number[],
+    current: Set<number> | undefined,
+    add: boolean,
+): number[] => {
+    if (!add || current == null) {
+        return groupCells;
+    }
+    const group = new Set(groupCells);
+    if (groupCells.every((id) => current.has(id))) {
+        return Array.from(current).filter((id) => !group.has(id));
+    }
+    return Array.from(current).concat(groupCells.filter((id) => !current.has(id)));
 };
 
 const renderPoints = (
@@ -261,6 +299,10 @@ interface UmapPlotProps {
     geneExpressionData?: GeneExpressionData[];
     totalGenesSelected?: number;
     fixedBounds?: { minX: number; maxX: number; minY: number; maxY: number } | null;
+    selectedCellIds?: Set<number>;
+    onSelectionChange?: (cellIds: number[]) => void;
+    // Overlays drawn over the plot, like the cell selection panel.
+    children?: ReactNode;
 }
 
 const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
@@ -276,6 +318,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             geneExpressionData = [],
             totalGenesSelected = 0,
             fixedBounds = null,
+            selectedCellIds,
+            onSelectionChange,
+            children,
         },
         ref,
     ): ReactElement => {
@@ -397,6 +442,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const [isHovering, setIsHovering] = useState(false);
         const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
         const [isDragging, setIsDragging] = useState(false);
+        const [isBrushing, setIsBrushing] = useState(false);
+        const brushRef = useRef<BrushRect | null>(null);
         const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
         const [lastTransform, setLastTransform] = useState<ViewTransform>({
             scale: 1,
@@ -417,6 +464,56 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             Array<{ cellType: string; color: string }>
         >([]);
         const [showZoomHint, setShowZoomHint] = useState(false);
+
+        // Cell ids per time point and per cell type, for selecting a group from the legend.
+        const groupCells = useMemo(() => {
+            const groups = {
+                time: new Map<string, number[]>(),
+                cell_type: new Map<string, number[]>(),
+            };
+            for (const point of data) {
+                for (const field of ['time', 'cell_type'] as const) {
+                    const value = point[field];
+                    if (value == null) continue;
+                    const ids = groups[field].get(value) ?? [];
+                    ids.push(Number(point.id));
+                    groups[field].set(value, ids);
+                }
+            }
+            return groups;
+        }, [data]);
+
+        const renderLegendItem = (field: 'time' | 'cell_type', value: string, color: string) => {
+            const content = (
+                <>
+                    <TimeLegendDot $color={color} />
+                    <span>{value}</span>
+                </>
+            );
+            if (onSelectionChange == null) {
+                return <TimeLegendItem key={value}>{content}</TimeLegendItem>;
+            }
+            const cells = groupCells[field].get(value) ?? [];
+            const isSelected =
+                selectedCellIds != null &&
+                cells.length > 0 &&
+                cells.every((id) => selectedCellIds.has(id));
+            return (
+                <TimeLegendItem key={value}>
+                    <LegendItemButton
+                        type="button"
+                        $isSelected={isSelected}
+                        aria-pressed={isSelected}
+                        title="Click to select these cells, Shift + click to add or remove them"
+                        onClick={(event) =>
+                            onSelectionChange(selectGroup(cells, selectedCellIds, event.shiftKey))
+                        }
+                    >
+                        {content}
+                    </LegendItemButton>
+                </TimeLegendItem>
+            );
+        };
 
         // Use the colorMode from props
         const colorMode = colorModeProp;
@@ -628,6 +725,51 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     useAlpha,
                 );
 
+                if (selectedCellIds && selectedCellIds.size > 0) {
+                    const selectedPoints = points.filter((p) =>
+                        selectedCellIds.has(parseInt(p.id)),
+                    );
+                    // One path per halo, filled once, so overlapping halos don't add up.
+                    ctx.fillStyle = GEN_ORANGE['500'];
+                    for (const { extraRadius, alpha } of SELECTION_GLOW) {
+                        ctx.globalAlpha = alpha;
+                        ctx.beginPath();
+                        for (const p of selectedPoints) {
+                            ctx.moveTo(p.screenX + normalRadius + extraRadius, p.screenY);
+                            ctx.arc(
+                                p.screenX,
+                                p.screenY,
+                                normalRadius + extraRadius,
+                                0,
+                                2 * Math.PI,
+                            );
+                        }
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1.0;
+                    renderPoints(
+                        ctx,
+                        selectedPoints,
+                        colorCacheRef.current,
+                        getValue,
+                        normalRadius,
+                        defaultColor,
+                        colorValues,
+                        legendMaxRef.current,
+                        geneExpressionData.length > 0,
+                        useAlpha,
+                    );
+                }
+
+                // Same look as the volcano plot's selection rectangle
+                if (brushRef.current) {
+                    const { startX, startY, endX, endY } = brushRef.current;
+                    ctx.globalAlpha = 1.0;
+                    ctx.strokeStyle = GEN_GREY['500'];
+                    ctx.lineWidth = 1;
+                    ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+                }
+
                 if (hoveredPointRef.current) {
                     ctx.globalAlpha = 1.0;
                     ctx.strokeStyle = '#000';
@@ -652,6 +794,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 colorValues,
                 geneExpressionData.length,
                 useAlpha,
+                selectedCellIds,
             ],
         );
 
@@ -670,16 +813,26 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 event.preventDefault();
                 event.stopPropagation();
                 const coords = getMouseCoordinates(event);
-                setIsDragging(true);
-                setDragStart(coords);
-                setLastTransform(transformRef.current);
+                if (event.shiftKey && onSelectionChange) {
+                    brushRef.current = {
+                        startX: coords.x,
+                        startY: coords.y,
+                        endX: coords.x,
+                        endY: coords.y,
+                    };
+                    setIsBrushing(true);
+                } else {
+                    setIsDragging(true);
+                    setDragStart(coords);
+                    setLastTransform(transformRef.current);
+                }
                 hoveredPointRef.current = null;
                 setIsHovering(false);
                 pointerEventRef.current = null;
                 hideTooltip();
                 document.body.style.userSelect = 'none';
             },
-            [getMouseCoordinates, hideTooltip],
+            [getMouseCoordinates, hideTooltip, onSelectionChange],
         );
 
         const handleMouseMove = useCallback(
@@ -687,7 +840,10 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const coords = getMouseCoordinates(event);
                 pointerEventRef.current = { clientX: event.clientX, clientY: event.clientY };
 
-                if (isDragging) {
+                if (isBrushing) {
+                    // Followed on the window (see the brushing effect), also outside the plot.
+                    return;
+                } else if (isDragging) {
                     event.preventDefault();
                     event.stopPropagation();
                     hoveredPointRef.current = null;
@@ -747,6 +903,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 }
             },
             [
+                isBrushing,
                 isDragging,
                 dragStart,
                 lastTransform,
@@ -759,14 +916,60 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             ],
         );
 
+        const finishBrush = useCallback(() => {
+            const brush = brushRef.current;
+            brushRef.current = null;
+            setIsBrushing(false);
+            document.body.style.userSelect = '';
+            const hasArea =
+                brush != null && brush.startX !== brush.endX && brush.startY !== brush.endY;
+            if (brush && hasArea && onSelectionChange) {
+                const selected: number[] = [];
+                for (const p of spatialIndexRef.current) {
+                    if (isPointInBrush(p.screenX, p.screenY, brush)) {
+                        selected.push(parseInt(p.id));
+                    }
+                }
+                onSelectionChange(selected);
+            } else {
+                render(spatialIndexRef.current);
+            }
+        }, [onSelectionChange, render]);
+
+        // While brushing, follow the mouse on the whole window, so a rectangle dragged past the
+        // plot's edge is clamped to it (like the volcano plot's) instead of lost.
+        useEffect(() => {
+            if (!isBrushing) return;
+
+            const handleWindowMouseMove = (event: MouseEvent) => {
+                const canvas = canvasRef.current;
+                if (!canvas || !brushRef.current) return;
+                const rect = canvas.getBoundingClientRect();
+                brushRef.current = {
+                    ...brushRef.current,
+                    endX: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
+                    endY: Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
+                };
+                render(spatialIndexRef.current);
+            };
+
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', finishBrush);
+            return () => {
+                window.removeEventListener('mousemove', handleWindowMouseMove);
+                window.removeEventListener('mouseup', finishBrush);
+            };
+        }, [isBrushing, finishBrush, render]);
+
         const handleMouseUp = useCallback(() => {
+            if (isBrushing) return; // finished by the window listener
             setIsDragging(false);
             hoveredPointRef.current = null;
             setIsHovering(false);
             pointerEventRef.current = null;
             hideTooltip();
             document.body.style.userSelect = '';
-        }, [hideTooltip]);
+        }, [hideTooltip, isBrushing]);
 
         const handleDoubleClick = useCallback(() => {
             // Reset zoom and pan
@@ -780,13 +983,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 window.cancelAnimationFrame(hoverRafRef.current);
                 hoverRafRef.current = null;
             }
-            hoveredPointRef.current = null;
+            // Redraw without the hover ring, which is otherwise left on the canvas.
+            if (hoveredPointRef.current) {
+                hoveredPointRef.current = null;
+                render(spatialIndexRef.current);
+            }
             setIsHovering(false);
             setIsDragging(false);
             pointerEventRef.current = null;
             hideTooltip();
-            document.body.style.userSelect = '';
-        }, [hideTooltip]);
+            // A brush keeps going outside the plot until the mouse is released.
+            if (!brushRef.current) {
+                document.body.style.userSelect = '';
+            }
+        }, [hideTooltip, render]);
 
         const handleWheel = useCallback(
             (event: React.WheelEvent<HTMLDivElement> | React.WheelEvent<HTMLCanvasElement>) => {
@@ -857,6 +1067,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             dimensions.height,
             useAlpha,
             geneExpressionData,
+            selectedCellIds,
         ]);
 
         useEffect(() => {
@@ -870,10 +1081,12 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         return (
             <ScatterPlotContainer ref={containerRef} onWheel={handleWheel}>
                 <ZoomHint $visible={showZoomHint}>Double-click to reset zoom</ZoomHint>
+                {children}
 
                 <Canvas
                     ref={canvasRef}
                     $isDragging={isDragging}
+                    $isBrushing={isBrushing}
                     $isHovering={isHovering}
                     style={{
                         width: `${dimensions.width}px`,
@@ -903,12 +1116,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Time</TimeLegendTitle>
                         <TimeLegendItems>
-                            {timeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.time}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.time}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {timeLegendItems.map((item) =>
+                                renderLegendItem('time', item.time, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}
@@ -917,12 +1127,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Cell Type</TimeLegendTitle>
                         <TimeLegendItems>
-                            {cellTypeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.cellType}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.cellType}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {cellTypeLegendItems.map((item) =>
+                                renderLegendItem('cell_type', item.cellType, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}

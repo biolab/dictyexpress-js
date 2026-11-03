@@ -4,6 +4,7 @@ export declare global {
     const WEBSOCKET_URL: string | null;
     const FIND_SIMILAR_API_URL: string | null;
     const GO_ENRICHMENT_API_URL: string | null;
+    const CELL_DE_API_URL: string | null;
     const COMMUNITY_SLUG: string;
     const SELECTED_TIMESERIES_SLUG: string | null;
     interface Window {
@@ -12,6 +13,7 @@ export declare global {
         WEBSOCKET_URL?: string | null;
         FIND_SIMILAR_API_URL?: string | null;
         GO_ENRICHMENT_API_URL?: string | null;
+        CELL_DE_API_URL?: string | null;
         COMMUNITY_SLUG?: string;
         SELECTED_TIMESERIES_SLUG?: string | null;
         dataLayer: unknown[];

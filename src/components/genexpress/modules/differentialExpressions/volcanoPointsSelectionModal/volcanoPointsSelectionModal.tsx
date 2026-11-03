@@ -36,6 +36,7 @@ type GeneVolcanoPoint = {
 type VolcanoPointSelectionModalProps = {
     differentialExpressionName: string;
     probFieldLabel: string;
+    isMarkerRanking?: boolean;
     volcanoPoints: VolcanoPoint[];
     handleOnClose: () => void;
 } & PropsFromRedux;
@@ -43,6 +44,7 @@ type VolcanoPointSelectionModalProps = {
 const VolcanoPointSelectionModal = ({
     differentialExpressionName,
     probFieldLabel,
+    isMarkerRanking = false,
     volcanoPoints,
     selectedGenesIds,
     genes,
@@ -105,13 +107,41 @@ const VolcanoPointSelectionModal = ({
             headerName: 'log2(Fold Change)',
             width: 90,
         },
-        {
-            valueGetter: (params: ValueGetterParams): number => {
-                return params.data.point.logProbValue;
-            },
-            headerName: probFieldLabel,
-            width: 90,
-        },
+        ...(isMarkerRanking
+            ? [
+                  {
+                      valueGetter: (params: ValueGetterParams): number | undefined =>
+                          params.data.point.effectSize,
+                      headerName: "Cohen's d",
+                      width: 90,
+                  },
+                  // Pseudobulk test across biological replicates; empty for untested genes.
+                  {
+                      valueGetter: (params: ValueGetterParams): number | null =>
+                          params.data.point.replicatePValue ?? null,
+                      valueFormatter: ({ value }: { value: number | null }): string =>
+                          value == null ? '–' : value.toPrecision(3),
+                      headerName: 'P value (replicates)',
+                      width: 110,
+                  },
+                  {
+                      valueGetter: (params: ValueGetterParams): number | null =>
+                          params.data.point.replicateFdr ?? null,
+                      valueFormatter: ({ value }: { value: number | null }): string =>
+                          value == null ? '–' : value.toPrecision(3),
+                      headerName: 'FDR (replicates)',
+                      width: 110,
+                  },
+              ]
+            : [
+                  {
+                      valueGetter: (params: ValueGetterParams): number => {
+                          return params.data.point.probValue;
+                      },
+                      headerName: probFieldLabel,
+                      width: 90,
+                  },
+              ]),
     ] as ColDef[]);
 
     return (

@@ -1,5 +1,7 @@
 import _ from 'lodash';
 import differentialExpressionsReducer, {
+    CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID,
+    differentialExpressionCellSelectionResultAdded,
     differentialExpressionSelected,
     differentialExpressionsFetchSucceeded,
     DifferentialExpressionsState,
@@ -39,6 +41,41 @@ describe('differentialExpressions store', () => {
             };
 
             expect(newState).toEqual(expectedState);
+        });
+
+        it('should keep a cell selection result when differential expressions are fetched', () => {
+            const cellSelection = {
+                ...differentialExpressions[0],
+                id: CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID,
+            };
+            const withCellSelection = differentialExpressionsReducer(
+                initialState,
+                differentialExpressionCellSelectionResultAdded(cellSelection),
+            );
+            const newState = differentialExpressionsReducer(
+                withCellSelection,
+                differentialExpressionsFetchSucceeded(differentialExpressions),
+            );
+
+            expect(newState.byId).toEqual({
+                ...differentialExpressionsById,
+                [CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID]: cellSelection,
+            });
+        });
+
+        it('should replace the previous cell selection result', () => {
+            const first = { ...differentialExpressions[0], id: -1, name: 'first' };
+            const second = { ...differentialExpressions[1], id: -1, name: 'second' };
+            const newState = [first, second].reduce(
+                (state, result) =>
+                    differentialExpressionsReducer(
+                        state,
+                        differentialExpressionCellSelectionResultAdded(result),
+                    ),
+                initialState,
+            );
+
+            expect(newState.byId).toEqual({ [CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID]: second });
         });
 
         it('should set selectedId with differentialExpressionSelected action', () => {
