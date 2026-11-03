@@ -21,6 +21,8 @@ const result: CellDeResponse = {
     neg_log10_fdr: [8660.6, 49.7, 812.1, 0.30103],
     replicate_test: {
         status: 'ok',
+        method: 'limma-treat',
+        min_log2_fold_change: 1,
         replicates: [
             { name: 'act15GFP', n_selected: 1500, n_reference: 8000, used: true },
             { name: 'mCerulean', n_selected: 900, n_reference: 6000, used: true },
@@ -30,6 +32,7 @@ const result: CellDeResponse = {
     },
     replicate_pvalue: [1e-6, 0.002, 0.3, null],
     replicate_fdr: [4e-6, 0.004, 0.4, null],
+    replicate_log2_fold_change: [2.2, -2.8, 0.15, null],
 };
 
 describe('cellSelectionDifferentialExpression', () => {
@@ -53,6 +56,10 @@ describe('cellSelectionDifferentialExpression', () => {
         expect(differentialExpression.kind).toBe('markers');
         expect(differentialExpression.json.replicate_pvalue).toEqual(result.replicate_pvalue);
         expect(differentialExpression.json.replicate_fdr).toEqual(result.replicate_fdr);
+        expect(differentialExpression.json.replicate_test).toEqual(result.replicate_test);
+        expect(differentialExpression.json.replicate_log2_fold_change).toEqual(
+            result.replicate_log2_fold_change,
+        );
         expect(differentialExpression.json.gene_id).toEqual(result.genes);
         expect(differentialExpression.json.logfc).toEqual(result.log2_fold_change);
         expect(differentialExpression.json.cohens_d).toEqual(result.cohens_d);

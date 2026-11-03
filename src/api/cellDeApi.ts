@@ -4,6 +4,8 @@ import { deserializeResponse } from 'utils/apiUtils';
 export type ReplicateTest = {
     // 'ok', or why the pseudobulk test across replicates didn't run.
     status: string;
+    method?: 'limma-treat';
+    min_log2_fold_change?: number;
     replicates?: { name: string; n_selected: number; n_reference: number; used: boolean }[];
     n_genes_tested?: number;
 };
@@ -25,6 +27,7 @@ export type CellDeResponse = {
     // Present when replicate_test.status is 'ok'; null for genes too lowly expressed to test.
     replicate_pvalue?: (number | null)[];
     replicate_fdr?: (number | null)[];
+    replicate_log2_fold_change?: (number | null)[];
 };
 
 export const isCellDeEnabled = (): boolean =>
@@ -38,10 +41,13 @@ export const compareCells = async ({
     strain,
     cells,
     reference,
+    minLog2FoldChange,
 }: {
     strain: string;
     cells: number[];
     reference?: number[];
+    /** Replicate TREAT threshold; service default is 1 (twofold), 0 tests against zero. */
+    minLog2FoldChange?: number;
 }): Promise<CellDeResponse> => {
     const endpoint = CELL_DE_API_URL;
     if (endpoint == null) {
@@ -52,6 +58,11 @@ export const compareCells = async ({
     const url = new URL(endpoint, window.location.origin).toString();
 
     return deserializeResponse<CellDeResponse>(
-        await post(url, { strain, cells, ...(reference != null && { reference }) }),
+        await post(url, {
+            strain,
+            cells,
+            ...(reference != null && { reference }),
+            ...(minLog2FoldChange != null && { min_log2_fold_change: minLog2FoldChange }),
+        }),
     );
 };

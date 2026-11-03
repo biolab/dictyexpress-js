@@ -80,6 +80,8 @@ export const toDifferentialExpression = (
             neg_log10_fdr: result.neg_log10_fdr,
             replicate_pvalue: result.replicate_pvalue,
             replicate_fdr: result.replicate_fdr,
+            replicate_log2_fold_change: result.replicate_log2_fold_change,
+            replicate_test: result.replicate_test,
         },
     } as unknown as DifferentialExpression;
 };

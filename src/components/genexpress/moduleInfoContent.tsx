@@ -74,8 +74,10 @@ export const differentialExpressionsInfo: ReactNode = (
         <p>
             P-values are only in the gene table. They come from a pseudobulk test across the
             strain&apos;s biological replicates (separately grown fluorescent lines, or separate
-            libraries), not from treating each cell as a replicate. They are exploratory, because
-            the cells were selected from the same data. They are missing when fewer than two
+            libraries), not from treating each cell as a replicate. By default, the test asks
+            whether the pseudobulk expression change exceeds twofold in either direction (TREAT).
+            This is separate from the plot&apos;s Fold Change filter. P-values remain exploratory,
+            because the cells were selected from the same data. They are missing when fewer than two
             replicates have at least 10 selected and 10 reference cells.
         </p>
         <p>
