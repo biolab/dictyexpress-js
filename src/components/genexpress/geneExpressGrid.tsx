@@ -46,7 +46,15 @@ import { getSelectedGenesIds } from 'redux/stores/genes';
 import { RootState } from 'redux/rootReducer';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
-const defaultGeneIds = ['DDB_G0289073', 'DDB_G0269132', 'DDB_G0276761']; // csaA, ecmB, cotB
+// ecmB, rasD, thyA, cdc20, pcna, ecmF
+const defaultGeneIds = [
+    'DDB_G0269132',
+    'DDB_G0292996',
+    'DDB_G0280045',
+    'DDB_G0285601',
+    'DDB_G0287607',
+    'DDB_G0291291',
+];
 
 const mapStateToProps = (state: RootState) => {
     return {

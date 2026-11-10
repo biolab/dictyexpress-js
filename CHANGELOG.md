@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 1.2.9
+
+### Changed
+
+-   Change the default genes to ecmB, rasD, thyA, cdc20, pcna and ecmF.
+
 ## 1.2.8
 
 ### Changed
