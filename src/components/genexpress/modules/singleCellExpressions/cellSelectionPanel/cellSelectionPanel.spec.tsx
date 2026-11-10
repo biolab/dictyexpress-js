@@ -3,12 +3,12 @@ import { vi } from 'vitest';
 import CellSelectionPanel from './cellSelectionPanel';
 
 describe('CellSelectionPanel', () => {
-    it('hints how to select cells when nothing is selected', () => {
-        render(<CellSelectionPanel selectedCount={0} onClear={vi.fn()} isComparing={false} />);
+    it('shows nothing when no cells are selected', () => {
+        const { container } = render(
+            <CellSelectionPanel selectedCount={0} onClear={vi.fn()} isComparing={false} />,
+        );
 
-        expect(
-            screen.getByText('Shift + drag, or click a legend entry, to select cells'),
-        ).toBeInTheDocument();
+        expect(container).toBeEmptyDOMElement();
     });
 
     it('compares the selection with the chosen reference', () => {

@@ -1,18 +1,19 @@
 import styled from 'styled-components';
 import { Button } from '@mui/material';
-import { LegendBase, LegendTitle } from '../umapPlot/umapPlot.styles';
+import { LegendBase, LegendTitle, SELECTION_TOOLS_OFFSET } from '../umapPlot/umapPlot.styles';
 
 // The slate of the expression scale, which is also what selected cells are drawn in.
 const SLATE = '#4a688d';
 const SLATE_DARK = '#375068';
 
-// Sits in the plot's free top-left corner and reads as one of its legends. Stacked, so it
-// stays narrow enough to leave room for the expression legend on the right.
+// Sits in the plot's top-left corner, right of the pan/select tools, and reads as one of its
+// legends. Stacked, so it stays narrow enough to leave room for the expression legend on the
+// right.
 export const SelectionPanel = styled(LegendBase)`
     top: 5px;
-    left: 8px;
+    left: ${8 + SELECTION_TOOLS_OFFSET}px;
     right: auto;
-    max-width: calc(100% - 16px);
+    max-width: calc(100% - ${16 + SELECTION_TOOLS_OFFSET}px);
     padding: 0 6px 7px 10px;
 `;
 
@@ -68,13 +69,4 @@ export const CompareButton = styled(Button)<{ $primary?: boolean }>`
     &&.Mui-disabled {
         opacity: 0.5;
     }
-`;
-
-export const SelectionHint = styled.div`
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    font-size: 11px;
-    color: rgba(0, 0, 0, 0.45);
-    pointer-events: none;
 `;

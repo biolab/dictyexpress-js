@@ -190,10 +190,13 @@ export const singleCellInfo: ReactNode = (
                 view.
             </li>
             <li>
-                Shift + drag to select cells, or click a Time or Cell type legend entry to select
-                that group (Shift + click adds or removes it). Then find the cells&apos; markers
-                against the same time points or all other cells. The result opens in Differential
-                expression.
+                To select cells, choose the lasso tool at the top left of the plot and draw around
+                them; hold Shift to add to the selection, and press Esc to clear it. With the lasso
+                tool you can also click a single cell to select it, or Shift + click to add or
+                remove it. With the pan tool, Shift + drag draws the same outline. You can also
+                click a Time or Cell type legend entry to select that group (Shift + click adds or
+                removes it). Then find the cells&apos; markers against the same time points or all
+                other cells. The result opens in Differential expression.
             </li>
         </ul>
         <p>

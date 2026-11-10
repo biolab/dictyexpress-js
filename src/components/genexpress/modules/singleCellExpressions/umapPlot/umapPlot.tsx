@@ -9,9 +9,12 @@ import {
     useImperativeHandle,
     useMemo,
 } from 'react';
+import { SvgIcon, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { PanToolOutlined } from '@mui/icons-material';
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
     ScatterPlotContainer,
+    SelectionTools,
     ZoomHint,
     Canvas,
     AxisIndicator,
@@ -61,7 +64,17 @@ type TooltipPointer = {
     clientY: number;
 };
 
-type BrushRect = { startX: number; startY: number; endX: number; endY: number };
+type LassoPoint = { x: number; y: number };
+// The outline being drawn; `add` keeps the current selection and adds the outlined cells.
+// `selectTool` and `shiftKey` are kept for a press released without moving: with the select
+// tool that is a click on a cell.
+type Lasso = { points: LassoPoint[]; add: boolean; selectTool: boolean; shiftKey: boolean };
+type SelectionTool = 'pan' | 'select';
+
+// Skip mouse moves shorter than this (px), so the outline doesn't grow a vertex per pixel.
+const MIN_LASSO_STEP = 2;
+// A cell is hovered or clicked when the pointer is within this distance (px) of it.
+const POINTER_RADIUS = 6;
 
 // Helpers for color and drawing
 const ZERO_COLOR = '#e8e8e8';
@@ -191,11 +204,90 @@ const buildCellTypeColorCache = (data: UmapDataPoint[]): string[] => {
     return cache;
 };
 
-export const isPointInBrush = (x: number, y: number, brush: BrushRect): boolean =>
-    x >= Math.min(brush.startX, brush.endX) &&
-    x <= Math.max(brush.startX, brush.endX) &&
-    y >= Math.min(brush.startY, brush.endY) &&
-    y <= Math.max(brush.startY, brush.endY);
+/** Whether a point lies inside a closed outline (ray casting, even-odd rule). */
+export const isPointInPolygon = (x: number, y: number, polygon: LassoPoint[]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[i];
+        const b = polygon[j];
+        if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) {
+            inside = !inside;
+        }
+    }
+    return inside;
+};
+
+/**
+ * Ids of the cells drawn inside a lasso outline, or null when the outline has no area (a
+ * click or a straight stroke).
+ */
+const getCellsInLasso = (points: ScatterPlotPoint[], polygon: LassoPoint[]): number[] | null => {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const { x, y } of polygon) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+    }
+    if (polygon.length < 3 || minX === maxX || minY === maxY) {
+        return null;
+    }
+    const selected: number[] = [];
+    for (const p of points) {
+        if (
+            p.screenX >= minX &&
+            p.screenX <= maxX &&
+            p.screenY >= minY &&
+            p.screenY <= maxY &&
+            isPointInPolygon(p.screenX, p.screenY, polygon)
+        ) {
+            selected.push(parseInt(p.id));
+        }
+    }
+    return selected;
+};
+
+/** The cell drawn nearest to a position, within the pointer radius. */
+const findCellAt = (points: ScatterPlotPoint[], x: number, y: number): ScatterPlotPoint | null => {
+    let closest: ScatterPlotPoint | null = null;
+    let best = POINTER_RADIUS * POINTER_RADIUS;
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const dx = p.screenX - x;
+        const dy = p.screenY - y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= best) {
+            best = d2;
+            closest = p;
+        }
+    }
+    return closest;
+};
+
+const LassoIcon = (): ReactElement => (
+    <SvgIcon fontSize="inherit" viewBox="0 0 24 24">
+        <ellipse
+            cx="12"
+            cy="9.5"
+            rx="9"
+            ry="6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeDasharray="3.2 2.2"
+        />
+        <path
+            d="M7.5 14.8c-1.6 1.2-1.4 3.2.4 3.6 1.6.3 2.3 1.6 1.4 3.3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+        />
+    </SvgIcon>
+);
 
 const drawCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => {
     ctx.beginPath();
@@ -443,7 +535,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
         const [isDragging, setIsDragging] = useState(false);
         const [isBrushing, setIsBrushing] = useState(false);
-        const brushRef = useRef<BrushRect | null>(null);
+        const brushRef = useRef<Lasso | null>(null);
+        const [tool, setTool] = useState<SelectionTool>('pan');
         const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
         const [lastTransform, setLastTransform] = useState<ViewTransform>({
             scale: 1,
@@ -761,13 +854,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     );
                 }
 
-                // Same look as the volcano plot's selection rectangle
-                if (brushRef.current) {
-                    const { startX, startY, endX, endY } = brushRef.current;
+                // The lasso outline, closed back to its start as it will be on release.
+                if (brushRef.current && brushRef.current.points.length > 1) {
+                    const [first, ...rest] = brushRef.current.points;
+                    ctx.beginPath();
+                    ctx.moveTo(first.x, first.y);
+                    for (const point of rest) ctx.lineTo(point.x, point.y);
+                    ctx.closePath();
+                    ctx.globalAlpha = 0.12;
+                    ctx.fillStyle = GEN_ORANGE['500'];
+                    ctx.fill();
                     ctx.globalAlpha = 1.0;
                     ctx.strokeStyle = GEN_GREY['500'];
                     ctx.lineWidth = 1;
-                    ctx.strokeRect(startX, startY, endX - startX, endY - startY);
+                    ctx.stroke();
                 }
 
                 if (hoveredPointRef.current) {
@@ -813,12 +913,13 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 event.preventDefault();
                 event.stopPropagation();
                 const coords = getMouseCoordinates(event);
-                if (event.shiftKey && onSelectionChange) {
+                // The select tool draws on a plain drag; with the pan tool, Shift + drag does.
+                if (onSelectionChange && (tool === 'select' || event.shiftKey)) {
                     brushRef.current = {
-                        startX: coords.x,
-                        startY: coords.y,
-                        endX: coords.x,
-                        endY: coords.y,
+                        points: [coords],
+                        add: tool === 'select' && event.shiftKey,
+                        selectTool: tool === 'select',
+                        shiftKey: event.shiftKey,
                     };
                     setIsBrushing(true);
                 } else {
@@ -832,7 +933,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 hideTooltip();
                 document.body.style.userSelect = 'none';
             },
-            [getMouseCoordinates, hideTooltip, onSelectionChange],
+            [getMouseCoordinates, hideTooltip, onSelectionChange, tool],
         );
 
         const handleMouseMove = useCallback(
@@ -866,22 +967,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     hoverRafRef.current = window.requestAnimationFrame(() => {
                         hoverRafRef.current = null;
 
-                        // hover detect: find nearest within radius
-                        const R = 6;
-                        let closest: ScatterPlotPoint | null = null;
-                        let best = R * R;
                         const pts: ScatterPlotPoint[] = spatialIndexRef.current;
-
-                        for (let i = 0; i < pts.length; i++) {
-                            const p = pts[i];
-                            const dx = p.screenX - coords.x;
-                            const dy = p.screenY - coords.y;
-                            const d2 = dx * dx + dy * dy;
-                            if (d2 <= best) {
-                                best = d2;
-                                closest = p;
-                            }
-                        }
+                        const closest = findCellAt(pts, coords.x, coords.y);
 
                         // Only re-render if hovered point changed
                         if (closest) {
@@ -916,40 +1003,61 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             ],
         );
 
+        // With the select tool, a click on a cell selects it; with Shift it is added to the selection, or removed
+        // from it when already selected. A click on empty space changes nothing.
+        const selectCellAt = useCallback(
+            (x: number, y: number, add: boolean): boolean => {
+                const cell = onSelectionChange ? findCellAt(spatialIndexRef.current, x, y) : null;
+                if (!cell || !onSelectionChange) return false;
+                onSelectionChange(selectGroup([parseInt(cell.id)], selectedCellIds, add));
+                return true;
+            },
+            [onSelectionChange, selectedCellIds],
+        );
+
         const finishBrush = useCallback(() => {
             const brush = brushRef.current;
             brushRef.current = null;
             setIsBrushing(false);
             document.body.style.userSelect = '';
-            const hasArea =
-                brush != null && brush.startX !== brush.endX && brush.startY !== brush.endY;
-            if (brush && hasArea && onSelectionChange) {
-                const selected: number[] = [];
-                for (const p of spatialIndexRef.current) {
-                    if (isPointInBrush(p.screenX, p.screenY, brush)) {
-                        selected.push(parseInt(p.id));
-                    }
+            // Released where it was pressed: a click, which selects only with the select tool.
+            if (brush && brush.points.length === 1 && brush.selectTool) {
+                const [{ x, y }] = brush.points;
+                if (!selectCellAt(x, y, brush.shiftKey)) render(spatialIndexRef.current);
+                return;
+            }
+            // Without an outline (null) the selection is left alone.
+            const inLasso = brush ? getCellsInLasso(spatialIndexRef.current, brush.points) : null;
+            if (brush && inLasso && onSelectionChange) {
+                if (brush.add && selectedCellIds != null && selectedCellIds.size > 0) {
+                    onSelectionChange(
+                        Array.from(selectedCellIds).concat(
+                            inLasso.filter((id) => !selectedCellIds.has(id)),
+                        ),
+                    );
+                } else {
+                    onSelectionChange(inLasso);
                 }
-                onSelectionChange(selected);
             } else {
                 render(spatialIndexRef.current);
             }
-        }, [onSelectionChange, render]);
+        }, [onSelectionChange, render, selectedCellIds, selectCellAt]);
 
-        // While brushing, follow the mouse on the whole window, so a rectangle dragged past the
-        // plot's edge is clamped to it (like the volcano plot's) instead of lost.
+        // While drawing, follow the mouse on the whole window, so an outline dragged past the
+        // plot's edge runs along it instead of being lost.
         useEffect(() => {
             if (!isBrushing) return;
 
             const handleWindowMouseMove = (event: MouseEvent) => {
                 const canvas = canvasRef.current;
-                if (!canvas || !brushRef.current) return;
+                const lasso = brushRef.current;
+                if (!canvas || !lasso) return;
                 const rect = canvas.getBoundingClientRect();
-                brushRef.current = {
-                    ...brushRef.current,
-                    endX: Math.min(Math.max(event.clientX - rect.left, 0), rect.width),
-                    endY: Math.min(Math.max(event.clientY - rect.top, 0), rect.height),
-                };
+                const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+                const y = Math.min(Math.max(event.clientY - rect.top, 0), rect.height);
+                const last = lasso.points[lasso.points.length - 1];
+                if (Math.hypot(x - last.x, y - last.y) < MIN_LASSO_STEP) return;
+                lasso.points.push({ x, y });
                 render(spatialIndexRef.current);
             };
 
@@ -960,6 +1068,36 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 window.removeEventListener('mouseup', finishBrush);
             };
         }, [isBrushing, finishBrush, render]);
+
+        // Escape abandons an outline being drawn, or else clears the selection.
+        useEffect(() => {
+            const hasSelection = selectedCellIds != null && selectedCellIds.size > 0;
+            if (!onSelectionChange || (!isBrushing && !hasSelection)) return;
+
+            const handleKeyDown = (event: KeyboardEvent) => {
+                if (event.key !== 'Escape') return;
+                const target = event.target as HTMLElement | null;
+                // Leave Escape to text fields, menus and dialogs.
+                if (
+                    target?.closest?.(
+                        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="listbox"], [role="menu"]',
+                    )
+                ) {
+                    return;
+                }
+                if (brushRef.current) {
+                    brushRef.current = null;
+                    setIsBrushing(false);
+                    document.body.style.userSelect = '';
+                    render(spatialIndexRef.current);
+                } else {
+                    onSelectionChange([]);
+                }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [isBrushing, onSelectionChange, render, selectedCellIds]);
 
         const handleMouseUp = useCallback(() => {
             if (isBrushing) return; // finished by the window listener
@@ -1081,12 +1219,40 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         return (
             <ScatterPlotContainer ref={containerRef} onWheel={handleWheel}>
                 <ZoomHint $visible={showZoomHint}>Double-click to reset zoom</ZoomHint>
+                {onSelectionChange != null && (
+                    <SelectionTools>
+                        <ToggleButtonGroup
+                            orientation="vertical"
+                            size="small"
+                            exclusive
+                            value={tool}
+                            onChange={(_event, value: SelectionTool | null) => {
+                                if (value != null) setTool(value);
+                            }}
+                            aria-label="Mouse drag tool"
+                        >
+                            <Tooltip title="Pan: drag to move the plot" placement="right">
+                                <ToggleButton value="pan" aria-label="Pan">
+                                    <PanToolOutlined fontSize="inherit" />
+                                </ToggleButton>
+                            </Tooltip>
+                            <Tooltip
+                                title="Select cells: draw around them, or click one (Shift adds to the selection, Esc clears it)"
+                                placement="right"
+                            >
+                                <ToggleButton value="select" aria-label="Select cells">
+                                    <LassoIcon />
+                                </ToggleButton>
+                            </Tooltip>
+                        </ToggleButtonGroup>
+                    </SelectionTools>
+                )}
                 {children}
 
                 <Canvas
                     ref={canvasRef}
                     $isDragging={isDragging}
-                    $isBrushing={isBrushing}
+                    $isBrushing={isBrushing || tool === 'select'}
                     $isHovering={isHovering}
                     style={{
                         width: `${dimensions.width}px`,

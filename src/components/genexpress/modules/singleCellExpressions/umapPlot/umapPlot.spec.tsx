@@ -6,7 +6,7 @@ import UmapPlot, {
     GeneExpressionData,
     UmapDataPoint,
     UmapPlotHandle,
-    isPointInBrush,
+    isPointInPolygon,
     selectGroup,
 } from './umapPlot';
 
@@ -35,6 +35,7 @@ const createCanvasContext = () => {
         arc: vi.fn(),
         moveTo: vi.fn(),
         lineTo: vi.fn(),
+        closePath: vi.fn(),
         fill: vi.fn(),
         stroke: vi.fn(),
         clearRect: vi.fn(),
@@ -256,16 +257,24 @@ describe('UmapPlot', () => {
         expect(ref.current?.exportAsPNG()).toBe('data:image/png;base64,fake');
     });
 
-    it('checks whether a point lies inside a brush drawn in any direction', () => {
-        const brush = { startX: 100, startY: 80, endX: 20, endY: 10 };
+    it('checks whether a point lies inside an outline, including a concave one', () => {
+        // An L: the top-right quarter of the 100x100 square is cut out.
+        const outline = [
+            { x: 0, y: 0 },
+            { x: 50, y: 0 },
+            { x: 50, y: 50 },
+            { x: 100, y: 50 },
+            { x: 100, y: 100 },
+            { x: 0, y: 100 },
+        ];
 
-        expect(isPointInBrush(50, 50, brush)).toBe(true);
-        expect(isPointInBrush(100, 80, brush)).toBe(true);
-        expect(isPointInBrush(101, 50, brush)).toBe(false);
-        expect(isPointInBrush(50, 5, brush)).toBe(false);
+        expect(isPointInPolygon(25, 25, outline)).toBe(true);
+        expect(isPointInPolygon(75, 75, outline)).toBe(true);
+        expect(isPointInPolygon(75, 25, outline)).toBe(false);
+        expect(isPointInPolygon(120, 75, outline)).toBe(false);
     });
 
-    it('selects the cells inside a shift-drag rectangle', async () => {
+    it('selects the cells inside a shift-drag outline', async () => {
         const onSelectionChange = vi.fn();
         const ref = createRef<UmapPlotHandle>();
 
@@ -278,14 +287,96 @@ describe('UmapPlot', () => {
             return element as HTMLCanvasElement;
         });
 
+        // Around (40, 150) and (200, 40), leaving (360, 260) outside.
         fireEvent.mouseDown(canvas, { clientX: 0, clientY: 0, shiftKey: true });
+        fireEvent.mouseMove(canvas, { clientX: 250, clientY: 0 });
         fireEvent.mouseMove(canvas, { clientX: 250, clientY: 200 });
+        fireEvent.mouseMove(canvas, { clientX: 0, clientY: 200 });
         fireEvent.mouseUp(canvas);
 
         expect(onSelectionChange).toHaveBeenCalledWith([0, 1]);
     });
 
-    it('keeps the rectangle when the drag ends outside the plot, clamped to its edge', async () => {
+    it('draws with a plain drag once the select tool is chosen, and Shift adds', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        render(
+            <UmapPlot
+                ref={ref}
+                data={baseData}
+                selectedCellIds={new Set([2])}
+                onSelectionChange={onSelectionChange}
+            />,
+        );
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Select cells' }));
+
+        const drawAroundFirstCell = (shiftKey: boolean) => {
+            fireEvent.mouseDown(canvas, { clientX: 0, clientY: 100, shiftKey });
+            fireEvent.mouseMove(canvas, { clientX: 100, clientY: 100 });
+            fireEvent.mouseMove(canvas, { clientX: 100, clientY: 200 });
+            fireEvent.mouseMove(canvas, { clientX: 0, clientY: 200 });
+            fireEvent.mouseUp(canvas);
+        };
+
+        drawAroundFirstCell(false);
+        expect(onSelectionChange).toHaveBeenLastCalledWith([0]);
+
+        drawAroundFirstCell(true);
+        expect(onSelectionChange).toHaveBeenLastCalledWith([2, 0]);
+    });
+
+    it('selects a clicked cell with the select tool, and adds or removes one with Shift + click', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        const { rerender } = render(
+            <UmapPlot ref={ref} data={baseData} onSelectionChange={onSelectionChange} />,
+        );
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+        const click = (clientX: number, clientY: number, shiftKey = false) => {
+            fireEvent.mouseDown(canvas, { clientX, clientY, shiftKey });
+            fireEvent.mouseUp(canvas, { clientX, clientY, shiftKey });
+        };
+
+        // The pan tool doesn't select on a click, with or without Shift.
+        click(40, 150);
+        click(40, 150, true);
+        expect(onSelectionChange).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole('button', { name: 'Select cells' }));
+
+        // 4px from the cell at (40, 150): within the pointer radius.
+        click(44, 150);
+        expect(onSelectionChange).toHaveBeenLastCalledWith([0]);
+
+        // 10px away: too far, nothing changes.
+        click(50, 150);
+        expect(onSelectionChange).toHaveBeenCalledTimes(1);
+
+        rerender(
+            <UmapPlot
+                ref={ref}
+                data={baseData}
+                selectedCellIds={new Set([0])}
+                onSelectionChange={onSelectionChange}
+            />,
+        );
+        click(200, 40, true);
+        expect(onSelectionChange).toHaveBeenLastCalledWith([0, 1]);
+        click(40, 150, true);
+        expect(onSelectionChange).toHaveBeenLastCalledWith([]);
+    });
+
+    it('leaves the selection alone after a click on empty space or a straight stroke', async () => {
         const onSelectionChange = vi.fn();
         const ref = createRef<UmapPlotHandle>();
 
@@ -296,13 +387,55 @@ describe('UmapPlot', () => {
             return element as HTMLCanvasElement;
         });
 
-        // From inside the plot to far past its bottom-right corner (400x300).
-        fireEvent.mouseDown(canvas, { clientX: 100, clientY: 100, shiftKey: true });
+        fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10, shiftKey: true });
+        fireEvent.mouseUp(canvas);
+        fireEvent.mouseDown(canvas, { clientX: 0, clientY: 150, shiftKey: true });
+        fireEvent.mouseMove(canvas, { clientX: 300, clientY: 150 });
+        fireEvent.mouseUp(canvas);
+
+        expect(onSelectionChange).not.toHaveBeenCalled();
+    });
+
+    it('clears the selection on Escape, but not from a text field', () => {
+        const onSelectionChange = vi.fn();
+        render(
+            <>
+                <input aria-label="Search" />
+                <UmapPlot
+                    data={baseData}
+                    selectedCellIds={new Set([1])}
+                    onSelectionChange={onSelectionChange}
+                />
+            </>,
+        );
+
+        fireEvent.keyDown(screen.getByLabelText('Search'), { key: 'Escape' });
+        expect(onSelectionChange).not.toHaveBeenCalled();
+
+        fireEvent.keyDown(document.body, { key: 'Escape' });
+        expect(onSelectionChange).toHaveBeenCalledWith([]);
+    });
+
+    it('keeps the outline when the drag leaves the plot, clamped to its edge', async () => {
+        const onSelectionChange = vi.fn();
+        const ref = createRef<UmapPlotHandle>();
+
+        render(<UmapPlot ref={ref} data={baseData} onSelectionChange={onSelectionChange} />);
+        const canvas = await waitFor(() => {
+            const element = ref.current?.getCanvas();
+            expect(element).toBeInstanceOf(HTMLCanvasElement);
+            return element as HTMLCanvasElement;
+        });
+
+        // From inside the plot, out past its right and bottom edges (400x300) and back.
+        fireEvent.mouseDown(canvas, { clientX: 300, clientY: 200, shiftKey: true });
         fireEvent.mouseLeave(canvas);
+        fireEvent.mouseMove(window, { clientX: 2000, clientY: 200 });
         fireEvent.mouseMove(window, { clientX: 2000, clientY: 2000 });
+        fireEvent.mouseMove(window, { clientX: 300, clientY: 2000 });
         fireEvent.mouseUp(window);
 
-        // Cells at (200, 40) and (40, 150) are outside, (360, 260) is inside the clamped box.
+        // Cells at (200, 40) and (40, 150) are outside, (360, 260) is inside the clamped outline.
         expect(onSelectionChange).toHaveBeenCalledWith([2]);
     });
 

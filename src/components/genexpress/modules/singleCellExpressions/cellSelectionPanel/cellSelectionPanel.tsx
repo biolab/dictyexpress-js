@@ -7,7 +7,6 @@ import {
     CompareButton,
     CompareButtons,
     CompareLabel,
-    SelectionHint,
     SelectionPanel,
     SelectionTitle,
 } from './cellSelectionPanel.styles';
@@ -28,11 +27,9 @@ const CellSelectionPanel = ({
     onClear,
     isComparing,
     hasSameTimeReference = true,
-}: CellSelectionPanelProps): ReactElement => {
+}: CellSelectionPanelProps): ReactElement | null => {
     if (selectedCount === 0) {
-        return (
-            <SelectionHint>Shift + drag, or click a legend entry, to select cells</SelectionHint>
-        );
+        return null;
     }
 
     const clearButton = (

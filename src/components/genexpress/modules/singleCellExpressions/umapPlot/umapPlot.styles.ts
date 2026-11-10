@@ -37,6 +37,23 @@ export const Canvas = styled.canvas<{
     box-sizing: border-box;
 `;
 
+// Width the pan/select tools take up at the plot's left edge, gap included; the cell
+// selection panel starts after it.
+export const SELECTION_TOOLS_OFFSET = 34;
+
+export const SelectionTools = styled.div`
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 4px;
+
+    .MuiToggleButton-root {
+        padding: 4px;
+        font-size: 16px;
+    }
+`;
+
 export const AxisIndicator = styled.div`
     position: absolute;
     bottom: 0px;
