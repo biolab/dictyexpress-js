@@ -710,6 +710,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const xScale = plotWidth / (maxX - minX);
                 const yScale = plotHeight / (maxY - minY);
 
+                // Publish how data coordinates map to canvas pixels (x' = a * x + b, same for y),
+                // so that the tutorial can draw over the cells where they currently are.
+                if (canvasRef.current) {
+                    const { scale, offsetX, offsetY } = transformRef.current;
+                    const width = dimensions.width;
+                    const height = dimensions.height;
+                    canvasRef.current.dataset.viewTransform = [
+                        xScale * scale,
+                        (padding - minX * xScale - width / 2) * scale + width / 2 + offsetX,
+                        -yScale * scale,
+                        (height / 2 - padding + minY * yScale) * scale + height / 2 + offsetY,
+                    ].join(',');
+                }
+
                 const mapped = points.map((point) => {
                     const baseX = padding + (point.x - minX) * xScale;
                     const baseY = dimensions.height - padding - (point.y - minY) * yScale;

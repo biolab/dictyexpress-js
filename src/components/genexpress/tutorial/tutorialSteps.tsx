@@ -1,6 +1,5 @@
 import { Step, Placement } from 'react-joyride';
 import HCGif from 'images/clustering-demo.gif';
-import LassoDemoVideo from 'images/lasso-demo.mp4';
 
 export const TUTORIAL_TARGETS = {
     allModules: '[data-tutorial="all-modules"]',
@@ -388,21 +387,9 @@ export const tutorialSteps: Step[] = [
         content: (
             <>
                 <b>Draw around the dense cluster of prestalk cells</b> at the bottom right of the
-                large group: press, drag an outline around it and release. The legend shows which
-                color is prestalk.
+                large group, as the animation on the plot shows: press, drag an outline around it
+                and release. The legend shows which color is prestalk.
                 <br />
-                <br />
-                <div style={{ textAlign: 'center' }}>
-                    <video
-                        src={LassoDemoVideo}
-                        aria-label="Drawing an outline around the dense cluster of prestalk cells"
-                        autoPlay
-                        loop
-                        muted
-                        playsInline
-                        style={{ width: '100%' }}
-                    />
-                </div>
                 <br />
                 Alternatively, click <b>prestalk</b> in the legend to select all cells of that type.
                 Hold Shift to add to the selection; press Esc to clear it.
