@@ -366,8 +366,9 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.singleCellModule,
         content: (
             <>
-                So far we went from genes to cells. Now the reverse: choose a group of cells and ask
-                which genes mark them.
+                You've explored prespore genes through their expression, clustering and GO
+                enrichment. Now start from <b>prestalk cells</b> and find their markers, then
+                compare them with the prespore genes you selected earlier.
                 <br />
                 <br />
                 The plot should show AX4 cells colored by cell type. If the cells look faint, switch
@@ -403,7 +404,7 @@ export const tutorialSteps: Step[] = [
                     />
                 </div>
                 <br />
-                Alternatively, click a cell type in the legend to select all cells of that type.
+                Alternatively, click <b>prestalk</b> in the legend to select all cells of that type.
                 Hold Shift to add to the selection; press Esc to clear it.
             </>
         ),
@@ -419,8 +420,9 @@ export const tutorialSteps: Step[] = [
                 <br />
                 <br />
                 <b>Click "Same time points"</b> to compare them with the other cells collected at
-                the same time points, so that developmental time doesn't dominate the result. The
-                ranking may take a moment.
+                the same time points. This helps reduce differences due to developmental time. The
+                comparison includes all other cell types at those times, and the ranking may take a
+                moment.
             </>
         ),
         title: 'Find Markers',
@@ -431,23 +433,24 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.differentialModule,
         content: (
             <>
-                Differential Expression now shows your comparison. Each dot is again a gene, but the
-                axes have changed:
+                Differential Expression now compares your selected cells with the other cells from
+                the same time points. Each dot is a gene:
                 <br />
                 <br />
                 <ul style={{ margin: '0 0 0 16px', padding: 0 }}>
                     <li>
-                        <b>Left to right</b> is the fold change: genes on the right are higher in{' '}
-                        <b>the cells you selected</b> than in the cells they were compared with.
+                        <b>Left to right</b> still shows log2 fold change: genes on the right are
+                        higher in <b>your selected cells</b>; genes on the left are higher in the
+                        comparison cells.
                     </li>
                     <li>
-                        <b>Height</b> is |Cohen's d|, the size of the difference relative to the
-                        variation between cells. It is an effect size, not a p-value.
+                        <b>Height</b> now shows |Cohen's d|, the size of the difference relative to
+                        the variation between cells. It is an effect size, not a p-value.
                     </li>
                 </ul>
                 <br />
-                So the <b>upper right</b> now holds the markers of your cells; earlier it held the
-                prespore genes. If you selected prestalk cells, look for <i>ecmA</i> there.
+                With prestalk cells selected, markers such as <i>ecmA</i> should appear toward the{' '}
+                <b>upper right</b>.
             </>
         ),
         title: 'Markers of Your Cells',
@@ -457,7 +460,14 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.differentialModule,
         content: (
             <>
-                Let's take the strongest markers: the genes in the <b>upper right</b> region.
+                Look for the <b>prespore genes you selected earlier</b> among the larger dots.
+                Earlier they were on the right; here we expect many on the <b>left</b> because they
+                are lower in prestalk cells. The comparison now includes all other cells at the
+                selected times, so it is not an exact reversal of the earlier comparison.
+                <br />
+                <br />
+                Now switch from the prespore genes to candidate markers of your selected prestalk
+                cells in the <b>upper right</b> region.
                 <br />
                 <br />
                 <b>Click and drag</b> to select genes in that region.
@@ -500,12 +510,16 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.singleCellModule,
         content: (
             <>
-                The loop is closed: the genes found from your cells are now shown in every module.
+                You started with <i>ecmA</i> as a known prestalk marker. Now you've used prestalk
+                cells to find a broader set of candidate markers, which you can explore across the
+                modules.
                 <br />
                 <br />
                 Switch <b>Expression</b> back on if you turned it off. The cells are shaded by the
-                expression of the markers, so the cells you drew around should stand out. The{' '}
-                <b>Expression Time Courses</b> show when these genes turn on during development.
+                expression of the markers, so the cells you selected should stand out. This lets you
+                inspect the expression pattern behind the ranking. The{' '}
+                <b>Expression Time Courses</b> show how these genes change across development in the
+                separate whole-population experiment.
             </>
         ),
         title: 'Back to the Cells',
