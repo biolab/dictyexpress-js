@@ -1,13 +1,23 @@
 import { ReactElement, useEffect, useState, useRef, useMemo, CSSProperties } from 'react';
 import Joyride, { Styles, Step } from 'react-joyride';
 import { useTheme, Theme } from '@mui/material';
-import { useSelector } from 'react-redux';
+import { useSelector, useStore } from 'react-redux';
 import { useTutorial } from './tutorialContext';
 import { tutorialSteps, getPlacement, LayoutMode, TUTORIAL_TARGETS } from './tutorialSteps';
 import TutorialStateWatcher from './TutorialStateWatcher';
 import TutorialHighlighter from './TutorialHighlighter';
-import { TUTORIAL_STEP, getDropdownValue, isTutorialTimeSeries } from './tutorialUtils';
+import {
+    TUTORIAL_STEP,
+    VOLCANO_SELECT_STEPS,
+    VOLCANO_MODAL_STEPS,
+    SELECT_ALL_STEPS,
+    getDropdownValue,
+    hasCellSelection,
+    isSelectToolChosen,
+    isTutorialTimeSeries,
+} from './tutorialUtils';
 import { RootState } from 'redux/rootReducer';
+import { CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID } from 'redux/stores/differentialExpressions';
 import { breakpoints } from 'components/app/globalStyle';
 
 const getLayoutMode = (w: number): LayoutMode =>
@@ -114,12 +124,33 @@ const Tutorial = (): ReactElement => {
         return (getDropdownValue(TUTORIAL_TARGETS.singleCellStrainDropdown) || '') === 'AX4';
     }, [stepIndex]);
 
+    // The cell selection steps keep their Next button when they are already done on entry
+    // (after going back), read from the page as it is when the step changes.
+    const store = useStore<RootState>();
+    const isCellStepCompleted = useMemo(() => {
+        switch (stepIndex) {
+            case TUTORIAL_STEP.CELLS_SELECT_TOOL:
+                return isSelectToolChosen();
+            case TUTORIAL_STEP.CELLS_DRAW:
+                return hasCellSelection();
+            case TUTORIAL_STEP.CELLS_FIND_MARKERS: {
+                const { byId, selectedId } = store.getState().differentialExpressions;
+                return (
+                    selectedId === CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID &&
+                    byId[CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID] != null
+                );
+            }
+            default:
+                return true;
+        }
+    }, [stepIndex, store]);
+
     const shouldHideNextButton = useMemo(() => {
         const c = completionRef.current;
         const volcanoModalSteps: number[] = [
-            TUTORIAL_STEP.VOLCANO_SELECT,
-            TUTORIAL_STEP.VOLCANO_MODAL,
-            TUTORIAL_STEP.SELECT_ALL,
+            ...VOLCANO_SELECT_STEPS,
+            ...VOLCANO_MODAL_STEPS,
+            ...SELECT_ALL_STEPS,
         ];
 
         return (
@@ -130,9 +161,10 @@ const Tutorial = (): ReactElement => {
             (stepIndex === TUTORIAL_STEP.STRAIN_SELECT && !c.strainSelect) ||
             (stepIndex === TUTORIAL_STEP.STRAIN_BACK_TO_AX4 && !isStrainBackCompleted) ||
             (stepIndex === TUTORIAL_STEP.CLUSTERING && !c.spearmanSelect) ||
+            !isCellStepCompleted ||
             volcanoModalSteps.includes(stepIndex)
         );
-    }, [stepIndex, isStrainBackCompleted]);
+    }, [stepIndex, isStrainBackCompleted, isCellStepCompleted]);
 
     // Handle resize
     useEffect(() => {

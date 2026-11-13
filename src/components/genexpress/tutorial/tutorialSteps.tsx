@@ -1,5 +1,6 @@
 import { Step, Placement } from 'react-joyride';
 import HCGif from 'images/clustering-demo.gif';
+import LassoDemoVideo from 'images/lasso-demo.mp4';
 
 export const TUTORIAL_TARGETS = {
     allModules: '[data-tutorial="all-modules"]',
@@ -12,6 +13,9 @@ export const TUTORIAL_TARGETS = {
     singleCellModule: '[data-tutorial="single-cell-module"]',
     singleCellColorDropdown: '[data-tutorial="single-cell-color-dropdown"]',
     singleCellStrainDropdown: '[data-tutorial="single-cell-strain-dropdown"]',
+    singleCellSelectTool: '[data-tutorial="single-cell-select-tool"]',
+    singleCellExpressionToggle: '[data-tutorial="single-cell-expression-toggle"]',
+    singleCellSelectionPanel: '[data-tutorial="single-cell-module"] [aria-label="Cell selection"]',
     clusteringModule: '[data-tutorial="clustering-module"]',
     clusteringDistanceMeasureDropdown: '[data-tutorial="clustering-distance-measure-dropdown"]',
     bookmarkButton: '[data-tutorial="bookmark-button"]',
@@ -357,7 +361,156 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Gene Ontology Enrichment',
     },
-    // Step 18: Closing
+    // Step 18: Choose the lasso tool (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                So far we went from genes to cells. Now the reverse: choose a group of cells and ask
+                which genes mark them.
+                <br />
+                <br />
+                The plot should show AX4 cells colored by cell type. If the cells look faint, switch
+                off <b>Expression</b> above the plot, so that the genes selected earlier don't dim
+                them.
+                <br />
+                <br />
+                <b>Click the lasso tool at the top left of the plot.</b>
+            </>
+        ),
+        title: 'From Cells to Genes',
+        spotlightClicks: true,
+    },
+    // Step 19: Select cells (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                <b>Draw around the dense cluster of prestalk cells</b> at the bottom right of the
+                large group: press, drag an outline around it and release. The legend shows which
+                color is prestalk.
+                <br />
+                <br />
+                <div style={{ textAlign: 'center' }}>
+                    <video
+                        src={LassoDemoVideo}
+                        aria-label="Drawing an outline around the dense cluster of prestalk cells"
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        style={{ width: '100%' }}
+                    />
+                </div>
+                <br />
+                Alternatively, click a cell type in the legend to select all cells of that type.
+                Hold Shift to add to the selection; press Esc to clear it.
+            </>
+        ),
+        title: 'Select Cells',
+        spotlightClicks: true,
+    },
+    // Step 20: Find markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                The panel next to the lasso tool shows how many cells you selected.
+                <br />
+                <br />
+                <b>Click "Same time points"</b> to compare them with the other cells collected at
+                the same time points, so that developmental time doesn't dominate the result. The
+                ranking may take a moment.
+            </>
+        ),
+        title: 'Find Markers',
+        spotlightClicks: true,
+    },
+    // Step 21: Markers volcano plot
+    {
+        target: TUTORIAL_TARGETS.differentialModule,
+        content: (
+            <>
+                Differential Expression now shows your comparison. Each dot is again a gene, but the
+                axes have changed:
+                <br />
+                <br />
+                <ul style={{ margin: '0 0 0 16px', padding: 0 }}>
+                    <li>
+                        <b>Left to right</b> is the fold change: genes on the right are higher in{' '}
+                        <b>the cells you selected</b> than in the cells they were compared with.
+                    </li>
+                    <li>
+                        <b>Height</b> is |Cohen's d|, the size of the difference relative to the
+                        variation between cells. It is an effect size, not a p-value.
+                    </li>
+                </ul>
+                <br />
+                So the <b>upper right</b> now holds the markers of your cells; earlier it held the
+                prespore genes. If you selected prestalk cells, look for <i>ecmA</i> there.
+            </>
+        ),
+        title: 'Markers of Your Cells',
+    },
+    // Step 22: Select markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.differentialModule,
+        content: (
+            <>
+                Let's take the strongest markers: the genes in the <b>upper right</b> region.
+                <br />
+                <br />
+                <b>Click and drag</b> to select genes in that region.
+            </>
+        ),
+        title: 'Select Marker Genes',
+        spotlightClicks: true,
+    },
+    // Step 23: Review markers modal (interactive)
+    {
+        target: TUTORIAL_TARGETS.volcanoSelectionModal,
+        content: (
+            <>
+                These are the markers you selected.
+                <br />
+                <br />
+                To look only at them (instead of adding them to the prespore genes), <b>
+                    uncheck
+                </b>{' '}
+                "Append selected genes to Genes module".
+            </>
+        ),
+        title: 'Review Markers',
+        spotlightClicks: true,
+    },
+    // Step 24: Select all markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.volcanoSelectionModal,
+        content: (
+            <>
+                <b>Click "Select all"</b> to continue with these markers.
+            </>
+        ),
+        title: 'Confirm Selection',
+        spotlightClicks: true,
+        data: { placementKey: `${TUTORIAL_TARGETS.volcanoSelectionModal}:select-all` },
+    },
+    // Step 25: Markers in the cells
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                The loop is closed: the genes found from your cells are now shown in every module.
+                <br />
+                <br />
+                Switch <b>Expression</b> back on if you turned it off. The cells are shaded by the
+                expression of the markers, so the cells you drew around should stand out. The{' '}
+                <b>Expression Time Courses</b> show when these genes turn on during development.
+            </>
+        ),
+        title: 'Back to the Cells',
+    },
+    // Step 26: Closing
     {
         target: 'body',
         content: (

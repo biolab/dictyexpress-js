@@ -12,6 +12,7 @@ import { ACTIONS, CallBackProps, EVENTS, STATUS } from 'react-joyride';
 import TutorialConfirmDialog from './TutorialConfirmDialog';
 import { TUTORIAL_STEP } from './tutorialUtils';
 import { RootState } from 'redux/rootReducer';
+import { isCellDeEnabled } from 'api';
 
 // Flag to track if hint should show (set true after first time series loads, false on user interaction)
 let showHintFlag = false;
@@ -29,6 +30,12 @@ export const INTERACTIVE_STEPS = new Set<number>([
     TUTORIAL_STEP.VOLCANO_MODAL,
     TUTORIAL_STEP.SELECT_ALL,
     TUTORIAL_STEP.CLUSTERING,
+    TUTORIAL_STEP.CELLS_SELECT_TOOL,
+    TUTORIAL_STEP.CELLS_DRAW,
+    TUTORIAL_STEP.CELLS_FIND_MARKERS,
+    TUTORIAL_STEP.MARKERS_SELECT,
+    TUTORIAL_STEP.MARKERS_MODAL,
+    TUTORIAL_STEP.MARKERS_SELECT_ALL,
 ]);
 
 interface TutorialContextType {
@@ -103,9 +110,17 @@ export const TutorialProvider = ({ children }: { children: ReactNode }) => {
             ) {
                 return; // Let TutorialStateWatcher handle advancement
             }
+            const isPrev = action === ACTIONS.PREV;
             // Going back from Clustering should skip modal steps and go to Volcano selection
             if (action === ACTIONS.PREV && index === TUTORIAL_STEP.CLUSTERING) {
                 setStepIndex(TUTORIAL_STEP.VOLCANO_SELECT);
+            } else if (action === ACTIONS.PREV && index === TUTORIAL_STEP.MARKERS_EXPRESSION) {
+                setStepIndex(TUTORIAL_STEP.MARKERS_SELECT);
+            } else if (!isCellDeEnabled() && index === TUTORIAL_STEP.GO_ENRICHMENT && !isPrev) {
+                // Without the marker service there is nothing to do in the cell selection steps.
+                setStepIndex(TUTORIAL_STEP.CLOSING);
+            } else if (!isCellDeEnabled() && index === TUTORIAL_STEP.CLOSING && isPrev) {
+                setStepIndex(TUTORIAL_STEP.GO_ENRICHMENT);
             } else {
                 setStepIndex(index + (action === ACTIONS.PREV ? -1 : 1));
             }

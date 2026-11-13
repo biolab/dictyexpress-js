@@ -1240,7 +1240,11 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                                 title="Select cells: draw around them, or click one (Shift adds to the selection, Esc clears it)"
                                 placement="right"
                             >
-                                <ToggleButton value="select" aria-label="Select cells">
+                                <ToggleButton
+                                    value="select"
+                                    aria-label="Select cells"
+                                    data-tutorial="single-cell-select-tool"
+                                >
                                     <LassoIcon />
                                 </ToggleButton>
                             </Tooltip>

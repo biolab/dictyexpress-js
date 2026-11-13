@@ -28,8 +28,42 @@ export const TUTORIAL_STEP = {
     SELECT_CLUSTER: 15,
     CROSS_MODULE: 16,
     GO_ENRICHMENT: 17,
-    CLOSING: 18,
+    CELLS_SELECT_TOOL: 18,
+    CELLS_DRAW: 19,
+    CELLS_FIND_MARKERS: 20,
+    MARKERS_PLOT: 21,
+    MARKERS_SELECT: 22,
+    MARKERS_MODAL: 23,
+    MARKERS_SELECT_ALL: 24,
+    MARKERS_EXPRESSION: 25,
+    CLOSING: 26,
 } as const;
+
+/**
+ * The volcano selection steps come twice: for the prespore genes and for the markers of the
+ * selected cells. Each list holds the step of the first and of the second round.
+ */
+export const VOLCANO_SELECT_STEPS: number[] = [
+    TUTORIAL_STEP.VOLCANO_SELECT,
+    TUTORIAL_STEP.MARKERS_SELECT,
+];
+export const VOLCANO_MODAL_STEPS: number[] = [
+    TUTORIAL_STEP.VOLCANO_MODAL,
+    TUTORIAL_STEP.MARKERS_MODAL,
+];
+export const SELECT_ALL_STEPS: number[] = [
+    TUTORIAL_STEP.SELECT_ALL,
+    TUTORIAL_STEP.MARKERS_SELECT_ALL,
+];
+
+/** The lasso tool is chosen in the single-cell module. */
+export const isSelectToolChosen = (): boolean =>
+    document.querySelector(TUTORIAL_TARGETS.singleCellSelectTool)?.getAttribute('aria-pressed') ===
+    'true';
+
+/** Some cells are selected in the single-cell module. */
+export const hasCellSelection = (): boolean =>
+    document.querySelector(TUTORIAL_TARGETS.singleCellSelectionPanel) != null;
 
 /**
  * Get the current text value from a MUI Select dropdown.

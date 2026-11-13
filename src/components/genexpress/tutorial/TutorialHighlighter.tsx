@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTutorial } from './tutorialContext';
 import { TUTORIAL_TARGETS } from './tutorialSteps';
-import { TUTORIAL_STEP, DROPDOWN_STEP_CONFIG, DropdownStepConfig } from './tutorialUtils';
+import {
+    TUTORIAL_STEP,
+    VOLCANO_SELECT_STEPS,
+    DROPDOWN_STEP_CONFIG,
+    DropdownStepConfig,
+} from './tutorialUtils';
 import { DragOverlay, Cursor, SelectionBox, CustomOverlay } from './TutorialHighlighter.styles';
 
 const HIGHLIGHT_CLASS = 'tutorial-highlight-row';
@@ -93,7 +98,27 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     break;
                 }
 
-                case TUTORIAL_STEP.VOLCANO_SELECT: {
+                case TUTORIAL_STEP.CELLS_SELECT_TOOL:
+                    resetDragOverlay();
+                    [
+                        TUTORIAL_TARGETS.singleCellSelectTool,
+                        TUTORIAL_TARGETS.singleCellExpressionToggle,
+                    ].forEach((selector) => {
+                        const el = document.querySelector(selector);
+                        if (el) addHighlight(el);
+                    });
+                    break;
+
+                case TUTORIAL_STEP.CELLS_FIND_MARKERS:
+                    document
+                        .querySelectorAll(`${TUTORIAL_TARGETS.singleCellSelectionPanel} button`)
+                        .forEach((btn) => {
+                            if (btn.textContent?.trim() === 'Same time points') addHighlight(btn);
+                        });
+                    break;
+
+                case TUTORIAL_STEP.VOLCANO_SELECT:
+                case TUTORIAL_STEP.MARKERS_SELECT: {
                     const differentialModule = document.querySelector(
                         TUTORIAL_TARGETS.differentialModule,
                     );
@@ -104,7 +129,8 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     break;
                 }
 
-                case TUTORIAL_STEP.VOLCANO_MODAL: {
+                case TUTORIAL_STEP.VOLCANO_MODAL:
+                case TUTORIAL_STEP.MARKERS_MODAL: {
                     resetDragOverlay();
                     const appendCheckbox = document.querySelector(
                         `${TUTORIAL_TARGETS.volcanoSelectionModal} input[name="append"]`,
@@ -116,6 +142,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
                 }
 
                 case TUTORIAL_STEP.SELECT_ALL:
+                case TUTORIAL_STEP.MARKERS_SELECT_ALL:
                     resetDragOverlay();
                     document
                         .querySelectorAll(`${TUTORIAL_TARGETS.volcanoSelectionModal} button`)
@@ -145,7 +172,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
     if (!isRunning) return null;
 
     // Show drag animation overlay for volcano select step
-    if (showDragAnimation && stepIndex === TUTORIAL_STEP.VOLCANO_SELECT && overlayRect) {
+    if (showDragAnimation && VOLCANO_SELECT_STEPS.includes(stepIndex) && overlayRect) {
         return (
             <DragOverlay
                 style={{

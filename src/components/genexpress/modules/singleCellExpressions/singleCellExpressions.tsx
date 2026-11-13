@@ -638,6 +638,7 @@ const SingleCellExpressions = ({
                                 />
                             }
                             label="Expression"
+                            data-tutorial="single-cell-expression-toggle"
                             labelPlacement="top"
                         />
                     )}
