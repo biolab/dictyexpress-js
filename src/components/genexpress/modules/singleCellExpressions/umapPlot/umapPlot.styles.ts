@@ -13,7 +13,8 @@ export const ScatterPlotContainer = styled.div`
 export const ZoomHint = styled.div<{ $visible: boolean }>`
     position: absolute;
     top: 10px;
-    left: 10px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(255, 255, 255, 0.7);
     color: rgb(0, 0, 0, 0.6);
     border-radius: 5px;
@@ -24,12 +25,33 @@ export const ZoomHint = styled.div<{ $visible: boolean }>`
     transition: opacity 0.15s ease;
 `;
 
-export const Canvas = styled.canvas<{ $isDragging: boolean; $isHovering: boolean }>`
+export const Canvas = styled.canvas<{
+    $isDragging: boolean;
+    $isBrushing: boolean;
+    $isHovering: boolean;
+}>`
     display: block;
-    cursor: ${({ $isDragging, $isHovering }) =>
-        $isDragging ? 'grabbing' : $isHovering ? 'pointer' : 'grab'};
+    cursor: ${({ $isDragging, $isBrushing, $isHovering }) =>
+        $isBrushing ? 'crosshair' : $isDragging ? 'grabbing' : $isHovering ? 'pointer' : 'grab'};
     border-radius: 4px;
     box-sizing: border-box;
+`;
+
+// Width the pan/select tools take up at the plot's left edge, gap included; the cell
+// selection panel starts after it.
+export const SELECTION_TOOLS_OFFSET = 34;
+
+export const SelectionTools = styled.div`
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 4px;
+
+    .MuiToggleButton-root {
+        padding: 4px;
+        font-size: 16px;
+    }
 `;
 
 export const AxisIndicator = styled.div`
@@ -41,7 +63,7 @@ export const AxisIndicator = styled.div`
 `;
 
 // Shared legend fieldset base styles
-const LegendBase = styled.fieldset`
+export const LegendBase = styled.fieldset`
     position: absolute;
     right: 8px;
     background: rgba(255, 255, 255, 0.95);
@@ -77,6 +99,33 @@ export const TimeLegendItem = styled.div`
     gap: 10px;
     font-size: 12px;
     color: #555;
+`;
+
+// A legend entry that selects its group's cells; tinted while the whole group is selected.
+export const LegendItemButton = styled.button<{ $isSelected: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin: 0 -4px;
+    padding: 0 4px;
+    border: none;
+    border-radius: 3px;
+    background: ${({ $isSelected }) => ($isSelected ? 'rgba(255, 152, 0, 0.18)' : 'none')};
+    font: inherit;
+    font-size: 12px;
+    color: #555;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+        background: ${({ $isSelected }) =>
+            $isSelected ? 'rgba(255, 152, 0, 0.28)' : 'rgba(0, 0, 0, 0.06)'};
+    }
+
+    &:focus-visible {
+        outline: 2px solid rgba(255, 152, 0, 0.6);
+    }
 `;
 
 export const TimeLegendDot = styled.div<{ $color: string }>`

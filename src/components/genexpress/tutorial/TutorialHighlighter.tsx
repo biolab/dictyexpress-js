@@ -1,11 +1,72 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTutorial } from './tutorialContext';
 import { TUTORIAL_TARGETS } from './tutorialSteps';
-import { TUTORIAL_STEP, DROPDOWN_STEP_CONFIG, DropdownStepConfig } from './tutorialUtils';
+import {
+    TUTORIAL_STEP,
+    VOLCANO_SELECT_STEPS,
+    DROPDOWN_STEP_CONFIG,
+    DropdownStepConfig,
+    hasCellSelection,
+} from './tutorialUtils';
 import { DragOverlay, Cursor, SelectionBox, CustomOverlay } from './TutorialHighlighter.styles';
+import { GEN_GREY, GEN_ORANGE } from 'components/genexpress/common/theming/theming';
 
 const HIGHLIGHT_CLASS = 'tutorial-highlight-row';
 const MENU_HIGHLIGHT_CLASS = 'tutorial-highlight-menu-item';
+
+// Outline around the dense cluster of AX4 prestalk cells, in UMAP coordinates.
+const PRESTALK_OUTLINE = [
+    [1.34, 3.11],
+    [2.19, 2.66],
+    [2.42, 1.45],
+    [2.07, 0.18],
+    [1.26, -0.14],
+    [0.37, 0.27],
+    [-0.17, 1.13],
+    [-0.06, 2.09],
+    [0.48, 2.82],
+];
+const LASSO_DURATION = '3.5s';
+const LASSO_KEY_TIMES = '0;0.15;0.8;1';
+
+/** A smooth closed SVG path through the points (Catmull-Rom spline). */
+const getClosedPath = (points: number[][]): string => {
+    const at = (i: number) => points[(i + points.length) % points.length];
+    const round = (value: number) => Math.round(value * 10) / 10;
+    const segments = points.map((point, i) => {
+        const [previous, next, afterNext] = [at(i - 1), at(i + 1), at(i + 2)];
+        return `C ${[
+            point[0] + (next[0] - previous[0]) / 6,
+            point[1] + (next[1] - previous[1]) / 6,
+            next[0] - (afterNext[0] - point[0]) / 6,
+            next[1] - (afterNext[1] - point[1]) / 6,
+            next[0],
+            next[1],
+        ]
+            .map(round)
+            .join(' ')}`;
+    });
+    return `M ${round(points[0][0])} ${round(points[0][1])} ${segments.join(' ')} Z`;
+};
+
+/**
+ * Where to draw the lasso demonstration: the plot's position on the page and the outline
+ * around the prestalk cells as they are currently drawn, so it follows panning and zooming.
+ */
+const getLassoDemo = (): { rect: DOMRect; path: string } | null => {
+    const canvas = document.querySelector<HTMLCanvasElement>(
+        `${TUTORIAL_TARGETS.singleCellModule} canvas`,
+    );
+    const view = canvas?.dataset.viewTransform?.split(',').map(Number);
+    if (!canvas || view?.length !== 4 || view.some(Number.isNaN)) return null;
+    const [scaleX, offsetX, scaleY, offsetY] = view;
+    return {
+        rect: canvas.getBoundingClientRect(),
+        path: getClosedPath(
+            PRESTALK_OUTLINE.map(([x, y]) => [scaleX * x + offsetX, scaleY * y + offsetY]),
+        ),
+    };
+};
 
 const TutorialHighlighter = (): JSX.Element | null => {
     const { isRunning, stepIndex } = useTutorial();
@@ -13,6 +74,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
     const highlightedRef = useRef<Element[]>([]);
     const [showDragAnimation, setShowDragAnimation] = useState(false);
     const [overlayRect, setOverlayRect] = useState<DOMRect | null>(null);
+    const [lassoDemo, setLassoDemo] = useState<{ rect: DOMRect; path: string } | null>(null);
 
     const cleanup = () => {
         highlightedRef.current.forEach((el) => {
@@ -24,6 +86,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
     const resetDragOverlay = () => {
         setShowDragAnimation(false);
         setOverlayRect(null);
+        setLassoDemo(null);
     };
 
     const addHighlight = (el: Element, cls = HIGHLIGHT_CLASS) => {
@@ -93,7 +156,44 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     break;
                 }
 
-                case TUTORIAL_STEP.VOLCANO_SELECT: {
+                case TUTORIAL_STEP.CELLS_SELECT_TOOL: {
+                    resetDragOverlay();
+                    const tool = document.querySelector(TUTORIAL_TARGETS.singleCellSelectTool);
+                    if (tool) addHighlight(tool);
+                    break;
+                }
+
+                case TUTORIAL_STEP.MARKERS_EXPRESSION:
+                    highlightDropdown({
+                        selector: TUTORIAL_TARGETS.singleCellColorDropdown,
+                        expectedValue: 'Expression',
+                    });
+                    break;
+
+                case TUTORIAL_STEP.CELLS_DRAW: {
+                    // Show where to draw until some cells are selected.
+                    const demo = hasCellSelection() ? null : getLassoDemo();
+                    setLassoDemo((previous) =>
+                        previous?.path === demo?.path &&
+                        previous?.rect.left === demo?.rect.left &&
+                        previous?.rect.top === demo?.rect.top
+                            ? previous
+                            : demo,
+                    );
+                    break;
+                }
+
+                case TUTORIAL_STEP.CELLS_FIND_MARKERS:
+                    resetDragOverlay();
+                    document
+                        .querySelectorAll(`${TUTORIAL_TARGETS.singleCellSelectionPanel} button`)
+                        .forEach((btn) => {
+                            if (btn.textContent?.trim() === 'Same time points') addHighlight(btn);
+                        });
+                    break;
+
+                case TUTORIAL_STEP.VOLCANO_SELECT:
+                case TUTORIAL_STEP.MARKERS_SELECT: {
                     const differentialModule = document.querySelector(
                         TUTORIAL_TARGETS.differentialModule,
                     );
@@ -104,7 +204,8 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     break;
                 }
 
-                case TUTORIAL_STEP.VOLCANO_MODAL: {
+                case TUTORIAL_STEP.VOLCANO_MODAL:
+                case TUTORIAL_STEP.MARKERS_MODAL: {
                     resetDragOverlay();
                     const appendCheckbox = document.querySelector(
                         `${TUTORIAL_TARGETS.volcanoSelectionModal} input[name="append"]`,
@@ -116,6 +217,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
                 }
 
                 case TUTORIAL_STEP.SELECT_ALL:
+                case TUTORIAL_STEP.MARKERS_SELECT_ALL:
                     resetDragOverlay();
                     document
                         .querySelectorAll(`${TUTORIAL_TARGETS.volcanoSelectionModal} button`)
@@ -145,7 +247,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
     if (!isRunning) return null;
 
     // Show drag animation overlay for volcano select step
-    if (showDragAnimation && stepIndex === TUTORIAL_STEP.VOLCANO_SELECT && overlayRect) {
+    if (showDragAnimation && VOLCANO_SELECT_STEPS.includes(stepIndex) && overlayRect) {
         return (
             <DragOverlay
                 style={{
@@ -157,6 +259,80 @@ const TutorialHighlighter = (): JSX.Element | null => {
             >
                 <SelectionBox />
                 <Cursor />
+            </DragOverlay>
+        );
+    }
+
+    // Show the lasso being drawn around the prestalk cells for the cell selection step
+    if (stepIndex === TUTORIAL_STEP.CELLS_DRAW && lassoDemo) {
+        const { rect, path } = lassoDemo;
+        return (
+            <DragOverlay style={{ left: `${rect.left}px`, top: `${rect.top}px` }}>
+                <svg width={rect.width} height={rect.height} style={{ overflow: 'visible' }}>
+                    <path d={path} fill={GEN_ORANGE['500']} fillOpacity={0}>
+                        <animate
+                            attributeName="fill-opacity"
+                            values="0;0;0.2;0"
+                            keyTimes={LASSO_KEY_TIMES}
+                            dur={LASSO_DURATION}
+                            repeatCount="indefinite"
+                        />
+                    </path>
+                    {[
+                        { stroke: '#fff', strokeWidth: 5 },
+                        { stroke: GEN_GREY['700'], strokeWidth: 2 },
+                    ].map(({ stroke, strokeWidth }) => (
+                        <path
+                            key={stroke}
+                            d={path}
+                            pathLength={1}
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeDasharray={1}
+                            strokeDashoffset={1}
+                            stroke={stroke}
+                            strokeWidth={strokeWidth}
+                        >
+                            <animate
+                                attributeName="stroke-dashoffset"
+                                values="1;1;0;0"
+                                keyTimes={LASSO_KEY_TIMES}
+                                dur={LASSO_DURATION}
+                                repeatCount="indefinite"
+                            />
+                            <animate
+                                attributeName="opacity"
+                                values="1;1;1;0"
+                                keyTimes={LASSO_KEY_TIMES}
+                                dur={LASSO_DURATION}
+                                repeatCount="indefinite"
+                            />
+                        </path>
+                    ))}
+                    <g filter="drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4))">
+                        <path
+                            d="M0 0v17.6l4.86-4.86h7.28L0 0z"
+                            fill="#fff"
+                            stroke="#000"
+                            strokeWidth={1.5}
+                        />
+                        <animateMotion
+                            path={path}
+                            keyPoints="0;0;1;1"
+                            keyTimes={LASSO_KEY_TIMES}
+                            calcMode="linear"
+                            dur={LASSO_DURATION}
+                            repeatCount="indefinite"
+                        />
+                        <animate
+                            attributeName="opacity"
+                            values="1;1;1;0"
+                            keyTimes={LASSO_KEY_TIMES}
+                            dur={LASSO_DURATION}
+                            repeatCount="indefinite"
+                        />
+                    </g>
+                </svg>
             </DragOverlay>
         );
     }

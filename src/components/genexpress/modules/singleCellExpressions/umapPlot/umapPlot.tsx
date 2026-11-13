@@ -1,15 +1,20 @@
 import {
     ReactElement,
+    ReactNode,
     useRef,
     useEffect,
     useCallback,
     useState,
     forwardRef,
     useImperativeHandle,
+    useMemo,
 } from 'react';
+import { SvgIcon, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material';
+import { PanToolOutlined } from '@mui/icons-material';
 import { Handler as VegaTooltipHandler } from 'vega-tooltip';
 import {
     ScatterPlotContainer,
+    SelectionTools,
     ZoomHint,
     Canvas,
     AxisIndicator,
@@ -18,12 +23,14 @@ import {
     TimeLegendItems,
     TimeLegendItem,
     TimeLegendDot,
+    LegendItemButton,
     ExpressionAlphaLegend,
     AlphaLegendTitle,
     AlphaGradientContainer,
     AlphaGradientBar,
     AlphaLabel,
 } from './umapPlot.styles';
+import { GEN_GREY, GEN_ORANGE } from 'components/genexpress/common/theming/theming';
 
 export interface UmapDataPoint {
     id: string;
@@ -57,6 +64,18 @@ type TooltipPointer = {
     clientY: number;
 };
 
+type LassoPoint = { x: number; y: number };
+// The outline being drawn; `add` keeps the current selection and adds the outlined cells.
+// `selectTool` and `shiftKey` are kept for a press released without moving: with the select
+// tool that is a click on a cell.
+type Lasso = { points: LassoPoint[]; add: boolean; selectTool: boolean; shiftKey: boolean };
+type SelectionTool = 'pan' | 'select';
+
+// Skip mouse moves shorter than this (px), so the outline doesn't grow a vertex per pixel.
+const MIN_LASSO_STEP = 2;
+// A cell is hovered or clicked when the pointer is within this distance (px) of it.
+const POINTER_RADIUS = 6;
+
 // Helpers for color and drawing
 const ZERO_COLOR = '#e8e8e8';
 const TIME_COLORS = ['#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c7eb3'];
@@ -64,6 +83,13 @@ const TIME_COLORS = ['#e55b33', '#f39446', '#ece852', '#63be68', '#47b19f', '#2c
 const CELL_TYPE_COLORS = ['#e45a31', '#2f7db1'];
 
 const MAX_TOOLTIP_GENES = 5;
+
+// Selected cells get an orange glow (outer, inner halo) and keep their own color, so the
+// other cells stay readable around them.
+const SELECTION_GLOW = [
+    { extraRadius: 4, alpha: 0.18 },
+    { extraRadius: 2, alpha: 0.45 },
+];
 
 const clamp01 = (t: number) => Math.max(0, Math.min(1, t));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -178,10 +204,114 @@ const buildCellTypeColorCache = (data: UmapDataPoint[]): string[] => {
     return cache;
 };
 
+/** Whether a point lies inside a closed outline (ray casting, even-odd rule). */
+export const isPointInPolygon = (x: number, y: number, polygon: LassoPoint[]): boolean => {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const a = polygon[i];
+        const b = polygon[j];
+        if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) {
+            inside = !inside;
+        }
+    }
+    return inside;
+};
+
+/**
+ * Ids of the cells drawn inside a lasso outline, or null when the outline has no area (a
+ * click or a straight stroke).
+ */
+const getCellsInLasso = (points: ScatterPlotPoint[], polygon: LassoPoint[]): number[] | null => {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const { x, y } of polygon) {
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+    }
+    if (polygon.length < 3 || minX === maxX || minY === maxY) {
+        return null;
+    }
+    const selected: number[] = [];
+    for (const p of points) {
+        if (
+            p.screenX >= minX &&
+            p.screenX <= maxX &&
+            p.screenY >= minY &&
+            p.screenY <= maxY &&
+            isPointInPolygon(p.screenX, p.screenY, polygon)
+        ) {
+            selected.push(parseInt(p.id));
+        }
+    }
+    return selected;
+};
+
+/** The cell drawn nearest to a position, within the pointer radius. */
+const findCellAt = (points: ScatterPlotPoint[], x: number, y: number): ScatterPlotPoint | null => {
+    let closest: ScatterPlotPoint | null = null;
+    let best = POINTER_RADIUS * POINTER_RADIUS;
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        const dx = p.screenX - x;
+        const dy = p.screenY - y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 <= best) {
+            best = d2;
+            closest = p;
+        }
+    }
+    return closest;
+};
+
+const LassoIcon = (): ReactElement => (
+    <SvgIcon fontSize="inherit" viewBox="0 0 24 24">
+        <ellipse
+            cx="12"
+            cy="9.5"
+            rx="9"
+            ry="6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeDasharray="3.2 2.2"
+        />
+        <path
+            d="M7.5 14.8c-1.6 1.2-1.4 3.2.4 3.6 1.6.3 2.3 1.6 1.4 3.3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+        />
+    </SvgIcon>
+);
+
 const drawCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI);
     ctx.fill();
+};
+
+/**
+ * Selection after clicking a legend entry: its group's cells, or with `add` the current
+ * selection plus the group (minus the group, if it was all selected already).
+ */
+export const selectGroup = (
+    groupCells: number[],
+    current: Set<number> | undefined,
+    add: boolean,
+): number[] => {
+    if (!add || current == null) {
+        return groupCells;
+    }
+    const group = new Set(groupCells);
+    if (groupCells.every((id) => current.has(id))) {
+        return Array.from(current).filter((id) => !group.has(id));
+    }
+    return Array.from(current).concat(groupCells.filter((id) => !current.has(id)));
 };
 
 const renderPoints = (
@@ -261,6 +391,10 @@ interface UmapPlotProps {
     geneExpressionData?: GeneExpressionData[];
     totalGenesSelected?: number;
     fixedBounds?: { minX: number; maxX: number; minY: number; maxY: number } | null;
+    selectedCellIds?: Set<number>;
+    onSelectionChange?: (cellIds: number[]) => void;
+    // Overlays drawn over the plot, like the cell selection panel.
+    children?: ReactNode;
 }
 
 const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
@@ -276,6 +410,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             geneExpressionData = [],
             totalGenesSelected = 0,
             fixedBounds = null,
+            selectedCellIds,
+            onSelectionChange,
+            children,
         },
         ref,
     ): ReactElement => {
@@ -397,6 +534,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         const [isHovering, setIsHovering] = useState(false);
         const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
         const [isDragging, setIsDragging] = useState(false);
+        const [isBrushing, setIsBrushing] = useState(false);
+        const brushRef = useRef<Lasso | null>(null);
+        const [tool, setTool] = useState<SelectionTool>('pan');
         const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
         const [lastTransform, setLastTransform] = useState<ViewTransform>({
             scale: 1,
@@ -417,6 +557,56 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             Array<{ cellType: string; color: string }>
         >([]);
         const [showZoomHint, setShowZoomHint] = useState(false);
+
+        // Cell ids per time point and per cell type, for selecting a group from the legend.
+        const groupCells = useMemo(() => {
+            const groups = {
+                time: new Map<string, number[]>(),
+                cell_type: new Map<string, number[]>(),
+            };
+            for (const point of data) {
+                for (const field of ['time', 'cell_type'] as const) {
+                    const value = point[field];
+                    if (value == null) continue;
+                    const ids = groups[field].get(value) ?? [];
+                    ids.push(Number(point.id));
+                    groups[field].set(value, ids);
+                }
+            }
+            return groups;
+        }, [data]);
+
+        const renderLegendItem = (field: 'time' | 'cell_type', value: string, color: string) => {
+            const content = (
+                <>
+                    <TimeLegendDot $color={color} />
+                    <span>{value}</span>
+                </>
+            );
+            if (onSelectionChange == null) {
+                return <TimeLegendItem key={value}>{content}</TimeLegendItem>;
+            }
+            const cells = groupCells[field].get(value) ?? [];
+            const isSelected =
+                selectedCellIds != null &&
+                cells.length > 0 &&
+                cells.every((id) => selectedCellIds.has(id));
+            return (
+                <TimeLegendItem key={value}>
+                    <LegendItemButton
+                        type="button"
+                        $isSelected={isSelected}
+                        aria-pressed={isSelected}
+                        title="Click to select these cells, Shift + click to add or remove them"
+                        onClick={(event) =>
+                            onSelectionChange(selectGroup(cells, selectedCellIds, event.shiftKey))
+                        }
+                    >
+                        {content}
+                    </LegendItemButton>
+                </TimeLegendItem>
+            );
+        };
 
         // Use the colorMode from props
         const colorMode = colorModeProp;
@@ -519,6 +709,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const plotHeight = dimensions.height - 2 * padding;
                 const xScale = plotWidth / (maxX - minX);
                 const yScale = plotHeight / (maxY - minY);
+
+                // Publish how data coordinates map to canvas pixels (x' = a * x + b, same for y),
+                // so that the tutorial can draw over the cells where they currently are.
+                if (canvasRef.current) {
+                    const { scale, offsetX, offsetY } = transformRef.current;
+                    const width = dimensions.width;
+                    const height = dimensions.height;
+                    canvasRef.current.dataset.viewTransform = [
+                        xScale * scale,
+                        (padding - minX * xScale - width / 2) * scale + width / 2 + offsetX,
+                        -yScale * scale,
+                        (height / 2 - padding + minY * yScale) * scale + height / 2 + offsetY,
+                    ].join(',');
+                }
 
                 const mapped = points.map((point) => {
                     const baseX = padding + (point.x - minX) * xScale;
@@ -628,6 +832,58 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     useAlpha,
                 );
 
+                if (selectedCellIds && selectedCellIds.size > 0) {
+                    const selectedPoints = points.filter((p) =>
+                        selectedCellIds.has(parseInt(p.id)),
+                    );
+                    // One path per halo, filled once, so overlapping halos don't add up.
+                    ctx.fillStyle = GEN_ORANGE['500'];
+                    for (const { extraRadius, alpha } of SELECTION_GLOW) {
+                        ctx.globalAlpha = alpha;
+                        ctx.beginPath();
+                        for (const p of selectedPoints) {
+                            ctx.moveTo(p.screenX + normalRadius + extraRadius, p.screenY);
+                            ctx.arc(
+                                p.screenX,
+                                p.screenY,
+                                normalRadius + extraRadius,
+                                0,
+                                2 * Math.PI,
+                            );
+                        }
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1.0;
+                    renderPoints(
+                        ctx,
+                        selectedPoints,
+                        colorCacheRef.current,
+                        getValue,
+                        normalRadius,
+                        defaultColor,
+                        colorValues,
+                        legendMaxRef.current,
+                        geneExpressionData.length > 0,
+                        useAlpha,
+                    );
+                }
+
+                // The lasso outline, closed back to its start as it will be on release.
+                if (brushRef.current && brushRef.current.points.length > 1) {
+                    const [first, ...rest] = brushRef.current.points;
+                    ctx.beginPath();
+                    ctx.moveTo(first.x, first.y);
+                    for (const point of rest) ctx.lineTo(point.x, point.y);
+                    ctx.closePath();
+                    ctx.globalAlpha = 0.12;
+                    ctx.fillStyle = GEN_ORANGE['500'];
+                    ctx.fill();
+                    ctx.globalAlpha = 1.0;
+                    ctx.strokeStyle = GEN_GREY['500'];
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
                 if (hoveredPointRef.current) {
                     ctx.globalAlpha = 1.0;
                     ctx.strokeStyle = '#000';
@@ -652,6 +908,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 colorValues,
                 geneExpressionData.length,
                 useAlpha,
+                selectedCellIds,
             ],
         );
 
@@ -670,16 +927,27 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 event.preventDefault();
                 event.stopPropagation();
                 const coords = getMouseCoordinates(event);
-                setIsDragging(true);
-                setDragStart(coords);
-                setLastTransform(transformRef.current);
+                // The select tool draws on a plain drag; with the pan tool, Shift + drag does.
+                if (onSelectionChange && (tool === 'select' || event.shiftKey)) {
+                    brushRef.current = {
+                        points: [coords],
+                        add: tool === 'select' && event.shiftKey,
+                        selectTool: tool === 'select',
+                        shiftKey: event.shiftKey,
+                    };
+                    setIsBrushing(true);
+                } else {
+                    setIsDragging(true);
+                    setDragStart(coords);
+                    setLastTransform(transformRef.current);
+                }
                 hoveredPointRef.current = null;
                 setIsHovering(false);
                 pointerEventRef.current = null;
                 hideTooltip();
                 document.body.style.userSelect = 'none';
             },
-            [getMouseCoordinates, hideTooltip],
+            [getMouseCoordinates, hideTooltip, onSelectionChange, tool],
         );
 
         const handleMouseMove = useCallback(
@@ -687,7 +955,10 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 const coords = getMouseCoordinates(event);
                 pointerEventRef.current = { clientX: event.clientX, clientY: event.clientY };
 
-                if (isDragging) {
+                if (isBrushing) {
+                    // Followed on the window (see the brushing effect), also outside the plot.
+                    return;
+                } else if (isDragging) {
                     event.preventDefault();
                     event.stopPropagation();
                     hoveredPointRef.current = null;
@@ -710,22 +981,8 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     hoverRafRef.current = window.requestAnimationFrame(() => {
                         hoverRafRef.current = null;
 
-                        // hover detect: find nearest within radius
-                        const R = 6;
-                        let closest: ScatterPlotPoint | null = null;
-                        let best = R * R;
                         const pts: ScatterPlotPoint[] = spatialIndexRef.current;
-
-                        for (let i = 0; i < pts.length; i++) {
-                            const p = pts[i];
-                            const dx = p.screenX - coords.x;
-                            const dy = p.screenY - coords.y;
-                            const d2 = dx * dx + dy * dy;
-                            if (d2 <= best) {
-                                best = d2;
-                                closest = p;
-                            }
-                        }
+                        const closest = findCellAt(pts, coords.x, coords.y);
 
                         // Only re-render if hovered point changed
                         if (closest) {
@@ -747,6 +1004,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 }
             },
             [
+                isBrushing,
                 isDragging,
                 dragStart,
                 lastTransform,
@@ -759,14 +1017,111 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             ],
         );
 
+        // With the select tool, a click on a cell selects it; with Shift it is added to the selection, or removed
+        // from it when already selected. A click on empty space changes nothing.
+        const selectCellAt = useCallback(
+            (x: number, y: number, add: boolean): boolean => {
+                const cell = onSelectionChange ? findCellAt(spatialIndexRef.current, x, y) : null;
+                if (!cell || !onSelectionChange) return false;
+                onSelectionChange(selectGroup([parseInt(cell.id)], selectedCellIds, add));
+                return true;
+            },
+            [onSelectionChange, selectedCellIds],
+        );
+
+        const finishBrush = useCallback(() => {
+            const brush = brushRef.current;
+            brushRef.current = null;
+            setIsBrushing(false);
+            document.body.style.userSelect = '';
+            // Released where it was pressed: a click, which selects only with the select tool.
+            if (brush && brush.points.length === 1 && brush.selectTool) {
+                const [{ x, y }] = brush.points;
+                if (!selectCellAt(x, y, brush.shiftKey)) render(spatialIndexRef.current);
+                return;
+            }
+            // Without an outline (null) the selection is left alone.
+            const inLasso = brush ? getCellsInLasso(spatialIndexRef.current, brush.points) : null;
+            if (brush && inLasso && onSelectionChange) {
+                if (brush.add && selectedCellIds != null && selectedCellIds.size > 0) {
+                    onSelectionChange(
+                        Array.from(selectedCellIds).concat(
+                            inLasso.filter((id) => !selectedCellIds.has(id)),
+                        ),
+                    );
+                } else {
+                    onSelectionChange(inLasso);
+                }
+            } else {
+                render(spatialIndexRef.current);
+            }
+        }, [onSelectionChange, render, selectedCellIds, selectCellAt]);
+
+        // While drawing, follow the mouse on the whole window, so an outline dragged past the
+        // plot's edge runs along it instead of being lost.
+        useEffect(() => {
+            if (!isBrushing) return;
+
+            const handleWindowMouseMove = (event: MouseEvent) => {
+                const canvas = canvasRef.current;
+                const lasso = brushRef.current;
+                if (!canvas || !lasso) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+                const y = Math.min(Math.max(event.clientY - rect.top, 0), rect.height);
+                const last = lasso.points[lasso.points.length - 1];
+                if (Math.hypot(x - last.x, y - last.y) < MIN_LASSO_STEP) return;
+                lasso.points.push({ x, y });
+                render(spatialIndexRef.current);
+            };
+
+            window.addEventListener('mousemove', handleWindowMouseMove);
+            window.addEventListener('mouseup', finishBrush);
+            return () => {
+                window.removeEventListener('mousemove', handleWindowMouseMove);
+                window.removeEventListener('mouseup', finishBrush);
+            };
+        }, [isBrushing, finishBrush, render]);
+
+        // Escape abandons an outline being drawn, or else clears the selection.
+        useEffect(() => {
+            const hasSelection = selectedCellIds != null && selectedCellIds.size > 0;
+            if (!onSelectionChange || (!isBrushing && !hasSelection)) return;
+
+            const handleKeyDown = (event: KeyboardEvent) => {
+                if (event.key !== 'Escape') return;
+                const target = event.target as HTMLElement | null;
+                // Leave Escape to text fields, menus and dialogs.
+                if (
+                    target?.closest?.(
+                        'input, textarea, select, [contenteditable="true"], [role="dialog"], [role="listbox"], [role="menu"]',
+                    )
+                ) {
+                    return;
+                }
+                if (brushRef.current) {
+                    brushRef.current = null;
+                    setIsBrushing(false);
+                    document.body.style.userSelect = '';
+                    render(spatialIndexRef.current);
+                } else {
+                    onSelectionChange([]);
+                }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+            return () => window.removeEventListener('keydown', handleKeyDown);
+        }, [isBrushing, onSelectionChange, render, selectedCellIds]);
+
         const handleMouseUp = useCallback(() => {
+            if (isBrushing) return; // finished by the window listener
             setIsDragging(false);
             hoveredPointRef.current = null;
             setIsHovering(false);
             pointerEventRef.current = null;
             hideTooltip();
             document.body.style.userSelect = '';
-        }, [hideTooltip]);
+        }, [hideTooltip, isBrushing]);
 
         const handleDoubleClick = useCallback(() => {
             // Reset zoom and pan
@@ -780,13 +1135,20 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                 window.cancelAnimationFrame(hoverRafRef.current);
                 hoverRafRef.current = null;
             }
-            hoveredPointRef.current = null;
+            // Redraw without the hover ring, which is otherwise left on the canvas.
+            if (hoveredPointRef.current) {
+                hoveredPointRef.current = null;
+                render(spatialIndexRef.current);
+            }
             setIsHovering(false);
             setIsDragging(false);
             pointerEventRef.current = null;
             hideTooltip();
-            document.body.style.userSelect = '';
-        }, [hideTooltip]);
+            // A brush keeps going outside the plot until the mouse is released.
+            if (!brushRef.current) {
+                document.body.style.userSelect = '';
+            }
+        }, [hideTooltip, render]);
 
         const handleWheel = useCallback(
             (event: React.WheelEvent<HTMLDivElement> | React.WheelEvent<HTMLCanvasElement>) => {
@@ -857,6 +1219,7 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
             dimensions.height,
             useAlpha,
             geneExpressionData,
+            selectedCellIds,
         ]);
 
         useEffect(() => {
@@ -870,10 +1233,44 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
         return (
             <ScatterPlotContainer ref={containerRef} onWheel={handleWheel}>
                 <ZoomHint $visible={showZoomHint}>Double-click to reset zoom</ZoomHint>
+                {onSelectionChange != null && (
+                    <SelectionTools>
+                        <ToggleButtonGroup
+                            orientation="vertical"
+                            size="small"
+                            exclusive
+                            value={tool}
+                            onChange={(_event, value: SelectionTool | null) => {
+                                if (value != null) setTool(value);
+                            }}
+                            aria-label="Mouse drag tool"
+                        >
+                            <Tooltip title="Pan: drag to move the plot" placement="right">
+                                <ToggleButton value="pan" aria-label="Pan">
+                                    <PanToolOutlined fontSize="inherit" />
+                                </ToggleButton>
+                            </Tooltip>
+                            <Tooltip
+                                title="Select cells: draw around them, or click one (Shift adds to the selection, Esc clears it)"
+                                placement="right"
+                            >
+                                <ToggleButton
+                                    value="select"
+                                    aria-label="Select cells"
+                                    data-tutorial="single-cell-select-tool"
+                                >
+                                    <LassoIcon />
+                                </ToggleButton>
+                            </Tooltip>
+                        </ToggleButtonGroup>
+                    </SelectionTools>
+                )}
+                {children}
 
                 <Canvas
                     ref={canvasRef}
                     $isDragging={isDragging}
+                    $isBrushing={isBrushing || tool === 'select'}
                     $isHovering={isHovering}
                     style={{
                         width: `${dimensions.width}px`,
@@ -903,12 +1300,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Time</TimeLegendTitle>
                         <TimeLegendItems>
-                            {timeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.time}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.time}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {timeLegendItems.map((item) =>
+                                renderLegendItem('time', item.time, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}
@@ -917,12 +1311,9 @@ const UmapPlot = forwardRef<UmapPlotHandle, UmapPlotProps>(
                     <TimeLegend>
                         <TimeLegendTitle>Cell Type</TimeLegendTitle>
                         <TimeLegendItems>
-                            {cellTypeLegendItems.map((item) => (
-                                <TimeLegendItem key={item.cellType}>
-                                    <TimeLegendDot $color={item.color} />
-                                    <span>{item.cellType}</span>
-                                </TimeLegendItem>
-                            ))}
+                            {cellTypeLegendItems.map((item) =>
+                                renderLegendItem('cell_type', item.cellType, item.color),
+                            )}
                         </TimeLegendItems>
                     </TimeLegend>
                 )}

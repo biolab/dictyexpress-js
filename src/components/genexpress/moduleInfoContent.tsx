@@ -63,6 +63,24 @@ export const differentialExpressionsInfo: ReactNode = (
             left are enriched in prestalk cells.
         </p>
         <p>
+            <b>Markers of selected cells</b>
+        </p>
+        <p>
+            Cells selected in the Single-Cell Expression module are compared with the cells of the
+            same time points or with all other cells, and appear here as a <b>Markers</b> entry.
+            Genes are ranked by effect size: the <b>y-axis</b> shows |Cohen&apos;s d|, which
+            doesn&apos;t grow with the number of cells.
+        </p>
+        <p>
+            P-values are only in the gene table. They come from a pseudobulk test across the
+            strain&apos;s biological replicates (separately grown fluorescent lines, or separate
+            libraries), not from treating each cell as a replicate. By default, the test asks
+            whether the pseudobulk expression change exceeds twofold in either direction (TREAT).
+            This is separate from the plot&apos;s Fold Change filter. P-values remain exploratory,
+            because the cells were selected from the same data. They are missing when fewer than two
+            replicates have at least 10 selected and 10 reference cells.
+        </p>
+        <p>
             Adjust <b>Fold Change</b> and <b>FDR</b> thresholds to filter significant genes. Toggle{' '}
             <b>Outliers</b> to expand the x-axis range. <b>Brush-select</b> points to add genes to
             your list.
@@ -170,6 +188,15 @@ export const singleCellInfo: ReactNode = (
             <li>
                 Zoom in and zoom out using the scroll wheel. Double-click on the plot to reset the
                 view.
+            </li>
+            <li>
+                To select cells, choose the lasso tool at the top left of the plot and draw around
+                them; hold Shift to add to the selection, and press Esc to clear it. With the lasso
+                tool you can also click a single cell to select it, or Shift + click to add or
+                remove it. With the pan tool, Shift + drag draws the same outline. You can also
+                click a Time or Cell type legend entry to select that group (Shift + click adds or
+                removes it). Then find the cells&apos; markers against the same time points or all
+                other cells. The result opens in Differential expression.
             </li>
         </ul>
         <p>
