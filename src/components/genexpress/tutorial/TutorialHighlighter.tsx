@@ -156,14 +156,17 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     break;
                 }
 
-                case TUTORIAL_STEP.CELLS_SELECT_TOOL:
+                case TUTORIAL_STEP.CELLS_SELECT_TOOL: {
                     resetDragOverlay();
-                    [
-                        TUTORIAL_TARGETS.singleCellSelectTool,
-                        TUTORIAL_TARGETS.singleCellExpressionToggle,
-                    ].forEach((selector) => {
-                        const el = document.querySelector(selector);
-                        if (el) addHighlight(el);
+                    const tool = document.querySelector(TUTORIAL_TARGETS.singleCellSelectTool);
+                    if (tool) addHighlight(tool);
+                    break;
+                }
+
+                case TUTORIAL_STEP.MARKERS_EXPRESSION:
+                    highlightDropdown({
+                        selector: TUTORIAL_TARGETS.singleCellColorDropdown,
+                        expectedValue: 'Expression',
                     });
                     break;
 

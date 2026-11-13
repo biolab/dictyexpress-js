@@ -370,9 +370,9 @@ export const tutorialSteps: Step[] = [
                 compare them with the prespore genes you selected earlier.
                 <br />
                 <br />
-                The plot should show AX4 cells colored by cell type. If the cells look faint, switch
-                off <b>Expression</b> above the plot, so that the genes selected earlier don't dim
-                them.
+                Keep AX4 cells colored by <b>Cell type</b>. The expression shading still reflects
+                the prespore genes selected earlier, so prestalk cells may look faint. Use the cell
+                type colors and legend to identify them.
                 <br />
                 <br />
                 <b>Click the lasso tool at the top left of the plot.</b>
@@ -436,8 +436,10 @@ export const tutorialSteps: Step[] = [
                     </li>
                 </ul>
                 <br />
-                With prestalk cells selected, markers such as <i>ecmA</i> should appear toward the{' '}
-                <b>upper right</b>.
+                Notice how the <b>prespore genes you selected earlier</b> (larger dots) tend to lie
+                on the <b>left</b>. This makes sense: they are expressed less in your selected
+                prestalk cells than in the comparison cells, which include prespore cells. Prestalk
+                markers such as <i>ecmA</i> should appear toward the <b>upper right</b>.
             </>
         ),
         title: 'Markers of Your Cells',
@@ -447,12 +449,6 @@ export const tutorialSteps: Step[] = [
         target: TUTORIAL_TARGETS.differentialModule,
         content: (
             <>
-                Look for the <b>prespore genes you selected earlier</b> among the larger dots.
-                Earlier they were on the right; here we expect many on the <b>left</b> because they
-                are lower in prestalk cells. The comparison now includes all other cells at the
-                selected times, so it is not an exact reversal of the earlier comparison.
-                <br />
-                <br />
                 Now switch from the prespore genes to candidate markers of your selected prestalk
                 cells in the <b>upper right</b> region.
                 <br />
@@ -502,14 +498,15 @@ export const tutorialSteps: Step[] = [
                 modules.
                 <br />
                 <br />
-                Switch <b>Expression</b> back on if you turned it off. The cells are shaded by the
-                expression of the markers, so the cells you selected should stand out. This lets you
+                <b>Set "Color by" to "Expression".</b> Darker cells have higher expression of the
+                selected markers, so the prestalk cells you selected should stand out. This lets you
                 inspect the expression pattern behind the ranking. The{' '}
                 <b>Expression Time Courses</b> show how these genes change across development in the
                 separate whole-population experiment.
             </>
         ),
         title: 'Back to the Cells',
+        spotlightClicks: true,
     },
     // Step 26: Closing
     {
