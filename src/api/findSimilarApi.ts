@@ -1,5 +1,6 @@
 import { post } from './fetch';
 import { FastFindSimilarGenesResponse } from 'redux/models/rest';
+import { SamplesGenesExpressionsById } from 'redux/models/internal';
 import { deserializeResponse } from 'utils/apiUtils';
 
 export const isFastFindSimilarEnabled = (): boolean =>
@@ -32,4 +33,20 @@ export const findSimilarGenesFast = async ({
             distance,
         }),
     );
+};
+
+export const getSamplesGenesExpressionsFast = async (
+    timeSeriesId: number,
+    genesIds: string[],
+): Promise<SamplesGenesExpressionsById> => {
+    const endpoint = FIND_SIMILAR_API_URL;
+    if (endpoint == null) {
+        throw new Error('Fast find-similar endpoint is not configured.');
+    }
+
+    const url = new URL(endpoint, window.location.origin).toString();
+    const { samples } = await deserializeResponse<{ samples: SamplesGenesExpressionsById }>(
+        await post(url, { time_series: timeSeriesId, genes: genesIds }),
+    );
+    return samples;
 };

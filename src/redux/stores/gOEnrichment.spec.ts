@@ -1,6 +1,6 @@
 import { DONE_DATA_STATUS } from '@genialis/resolwe/dist/api/types/rest';
 import _ from 'lodash';
-import { geneDeselected, genesSelected } from './genes';
+import { allGenesDeselected, geneDeselected, genesSelected } from './genes';
 import gOEnrichmentReducer, {
     gafFetchSucceeded,
     gOEnrichmentJsonCleared,
@@ -131,21 +131,14 @@ describe('gOEnrichmentStore store', () => {
             };
         });
 
-        it('should clear all fetched data on timeSeriesSelected action', () => {
+        it('should keep fetched data except gaf on timeSeriesSelected action', () => {
             const newState = gOEnrichmentReducer(initialState, timeSeriesSelected(1));
-            const expectedState = {
-                ...initialState,
-                json: null,
-                gaf: null,
-                source: '',
-                species: '',
-            };
 
-            expect(newState).toEqual(expectedState);
+            expect(newState).toEqual({ ...initialState, gaf: null });
         });
 
         it('should clear all fetched data on allGenesDeselected action', () => {
-            const newState = gOEnrichmentReducer(initialState, timeSeriesSelected(1));
+            const newState = gOEnrichmentReducer(initialState, allGenesDeselected());
             const expectedState = {
                 ...initialState,
                 json: null,

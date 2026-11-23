@@ -3,7 +3,11 @@ export { login, logout } from './authApi';
 export { addToBasket } from './basketApi';
 export { getCSRFCookie } from './csrfApi';
 export { getDifferentialExpressions } from './differentialExpressionApi';
-export { findSimilarGenesFast, isFastFindSimilarEnabled } from './findSimilarApi';
+export {
+    findSimilarGenesFast,
+    getSamplesGenesExpressionsFast,
+    isFastFindSimilarEnabled,
+} from './findSimilarApi';
 export { goEnrichmentFast, isFastGOEnrichmentEnabled } from './gOEnrichmentApi';
 export { compareCells, isCellDeEnabled } from './cellDeApi';
 export { getOrCreateData } from './getOrCreateApi';

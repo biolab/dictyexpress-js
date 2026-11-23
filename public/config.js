@@ -13,5 +13,5 @@ CELL_DE_API_URL = '/cell-de';
 
 // Default: bcm
 COMMUNITY_SLUG = 'bcm';
-// Default: first timeseries fetched from the backend
-SELECTED_TIMESERIES_SLUG = null;
+// Default: first time series shown in the selector (Rosengarten filter development)
+SELECTED_TIMESERIES_SLUG = 'relation-432';
