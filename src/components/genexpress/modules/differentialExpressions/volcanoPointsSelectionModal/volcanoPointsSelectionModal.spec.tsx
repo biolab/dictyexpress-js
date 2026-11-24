@@ -173,6 +173,8 @@ describe('volcanoPointsSelectionModal', () => {
                 logProbValue: 1.9,
                 probValue: 0,
                 effectSize: index === 0 ? -1.9 : 0.4,
+                pctSelected: index === 0 ? 0.034 : 0.5,
+                pctReference: 0.92,
                 replicatePValue: index === 0 ? 0.000123456 : null,
                 replicateFdr: index === 0 ? 0.00456789 : null,
                 negLog10Prob: 8661.5,
@@ -191,6 +193,8 @@ describe('volcanoPointsSelectionModal', () => {
             );
 
             expect(await screen.findByText("Cohen's d")).toBeInTheDocument();
+            expect(screen.getByText('Detected (selected)')).toBeInTheDocument();
+            expect(screen.getByText('3%')).toBeInTheDocument();
             expect(screen.getByText('P value (replicates)')).toBeInTheDocument();
             expect(screen.getByText('FDR (replicates)')).toBeInTheDocument();
             expect(screen.queryByText('P VALUE')).toBeNull();

@@ -71,7 +71,15 @@ export const differentialExpressionsInfo: ReactNode = (
             Cells selected in the Single-Cell Expression module are compared with the cells of the
             same time points or with all other cells, and appear here as a <b>Markers</b> entry.
             Genes are ranked by effect size: the <b>y-axis</b> shows |Cohen&apos;s d|, which
-            doesn&apos;t grow with the number of cells.
+            doesn&apos;t grow with the number of cells. A large effect size can also come from a
+            gene expressed broadly around the selected cells, so genes past both thresholds are
+            coloured only if they are rarely detected in the group where they are lower: in at most{' '}
+            <b>Max % detected</b> of the reference cells for genes higher in the selection, or of
+            the selected cells for genes lower in it (10% by default, 100 turns this off), as in
+            scanpy&apos;s marker filter. Detection rates are in the gene table. With{' '}
+            <b>Only selection-specific genes</b> ticked, brushing the plot picks only the coloured
+            genes. Non-detection can be dropout, so treat genes lower in a small selection with
+            care.
         </p>
         <p>
             P-values are only in the gene table. They come from a pseudobulk test across the

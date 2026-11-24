@@ -93,6 +93,9 @@ export type VolcanoPoint = {
     // Marker rankings only: Cohen's d, the pseudobulk test across replicates (null when not
     // tested), and the per-cell test, whose p-values are far below 1e-308 and kept as -log10.
     effectSize?: number;
+    // Fraction of selected / reference cells in which the gene is detected.
+    pctSelected?: number;
+    pctReference?: number;
     replicatePValue?: number | null;
     replicateFdr?: number | null;
     negLog10Prob?: number;

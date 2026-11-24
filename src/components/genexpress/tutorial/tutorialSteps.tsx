@@ -434,6 +434,11 @@ export const tutorialSteps: Step[] = [
                         <b>Height</b> now shows |Cohen's d|, the size of the difference relative to
                         the variation between cells. It is an effect size, not a p-value.
                     </li>
+                    <li>
+                        <b>Orange</b> dots pass both thresholds and are rarely detected in the other
+                        group, so they are specific to your selection (or switched off in it).{' '}
+                        <b>Max % detected</b> sets how rarely.
+                    </li>
                 </ul>
                 <br />
                 Notice how the <b>prespore genes you selected earlier</b> (larger dots) tend to lie

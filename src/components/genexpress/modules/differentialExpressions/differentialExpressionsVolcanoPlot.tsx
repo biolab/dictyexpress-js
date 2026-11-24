@@ -3,7 +3,7 @@ import _ from 'lodash';
 import { Spec } from 'vega';
 import Chart, { ChartHandle, DataDefinition, SignalDefinition } from '../../common/chart/chart';
 import { getMinMax, logOfBase } from 'utils/math';
-import { GEN_CYAN, GEN_GREY } from 'components/genexpress/common/theming/theming';
+import { GEN_CYAN, GEN_GREY, GEN_ORANGE } from 'components/genexpress/common/theming/theming';
 import { Thresholds, VolcanoPoint } from 'redux/models/internal';
 import useStateWithEffect from 'components/genexpress/common/useStateWithEffect';
 
@@ -13,11 +13,32 @@ type DifferentialExpressionsVolcanoPlotProps = {
     selectedGenesIds: string[];
     logFcOutliersLimit: number;
     displayOutliers: boolean;
+    // Marker rankings: genes past the fold change, effect size and detection limits are coloured.
+    markerFilter?: MarkerFilter;
     thresholds: Thresholds;
     // Full y-axis title, e.g. -log10(FDR) or |Cohen's d|.
     yAxisLabel: string;
     onSelect: ((genesIds: string[]) => void) | undefined;
 };
+
+export type MarkerFilter = {
+    fcLog: number;
+    minEffect: number;
+    // Highest detection in the group where the gene is lower.
+    maxDetection: number;
+};
+
+const MARKER_FILTER_EXPR = `markerFilter != null &&
+    abs(datum.logFcValue) >= markerFilter.fcLog &&
+    datum.logProbValue >= markerFilter.minEffect &&
+    (datum.logFcValue >= 0 ? datum.pctReference : datum.pctSelected) <= markerFilter.maxDetection`;
+
+const getTooltip = (yAxisLabel: string, withDetection: boolean): string =>
+    `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue${
+        withDetection
+            ? ", 'Detected (selected)': format(datum.pctSelected, '.0%'), 'Detected (reference)': format(datum.pctReference, '.0%')"
+            : ''
+    }}`;
 
 type Range = {
     minX: number;
@@ -40,6 +61,8 @@ const getVegaSpecification = (
     yAxisLabel: DifferentialExpressionsVolcanoPlotProps['yAxisLabel'],
     selectedGenePoints: VolcanoPoint[],
     highlightedGenePoints: VolcanoPoint[],
+    markerFilter: MarkerFilter | undefined,
+    tooltip: string,
 ): Spec => ({
     signals: [
         {
@@ -49,6 +72,10 @@ const getVegaSpecification = (
         {
             name: 'disableSelection',
             value: false,
+        },
+        {
+            name: 'markerFilter',
+            value: markerFilter ?? null,
         },
         {
             name: 'brushing_ended',
@@ -110,6 +137,11 @@ const getVegaSpecification = (
             transform: [logFcClampedValueTransform],
         },
         {
+            name: 'markers',
+            source: 'table',
+            transform: [{ type: 'filter', expr: MARKER_FILTER_EXPR }],
+        },
+        {
             name: 'x-thresholds',
             values: [{ x: thresholds.fcLog }, { x: -thresholds.fcLog }],
         },
@@ -166,7 +198,37 @@ const getVegaSpecification = (
                         value: GEN_GREY['500'],
                     },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
+                        signal: tooltip,
+                    },
+                },
+                update: {
+                    x: {
+                        field: 'logFcClampedValue',
+                        scale: 'xscale',
+                    },
+                    y: {
+                        field: 'logProbFiniteValue',
+                        scale: 'yscale',
+                    },
+                },
+            },
+        },
+        {
+            name: 'volcanoPointMarker',
+            type: 'symbol',
+            from: {
+                data: 'markers',
+            },
+            encode: {
+                enter: {
+                    size: {
+                        value: 5 * 5,
+                    },
+                    fill: {
+                        value: GEN_ORANGE['500'],
+                    },
+                    tooltip: {
+                        signal: tooltip,
                     },
                 },
                 update: {
@@ -194,7 +256,7 @@ const getVegaSpecification = (
                     },
                     fill: { value: GEN_GREY['700'] },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
+                        signal: tooltip,
                     },
                 },
                 update: {
@@ -224,7 +286,7 @@ const getVegaSpecification = (
                         value: GEN_CYAN['500'],
                     },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
+                        signal: tooltip,
                     },
                 },
                 update: {
@@ -415,6 +477,7 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
             displayOutliers = false,
             thresholds,
             yAxisLabel,
+            markerFilter,
             onSelect,
         },
         ref,
@@ -498,8 +561,12 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
                     name: 'disableSelection',
                     value: onSelect == null,
                 },
+                {
+                    name: 'markerFilter',
+                    value: markerFilter ?? null,
+                },
             ],
-            [getRange, onSelect],
+            [getRange, markerFilter, onSelect],
         );
 
         // Data handlers that is updated (and reattached) only if highlighted variable changes.
@@ -530,6 +597,8 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
                 yAxisLabel,
                 selectedGenePoints,
                 highlightedGenePoints,
+                markerFilter,
+                getTooltip(yAxisLabel, markerFilter != null),
             ),
         );
 

@@ -76,6 +76,8 @@ export const toDifferentialExpression = (
             gene_id: result.genes,
             logfc: result.log2_fold_change,
             cohens_d: result.cohens_d,
+            pct_selected: result.pct_selected,
+            pct_reference: result.pct_reference,
             neg_log10_pvalue: result.neg_log10_pvalue,
             neg_log10_fdr: result.neg_log10_fdr,
             replicate_pvalue: result.replicate_pvalue,

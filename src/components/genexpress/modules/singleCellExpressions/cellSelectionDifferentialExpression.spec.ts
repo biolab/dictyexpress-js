@@ -15,6 +15,8 @@ const result: CellDeResponse = {
     symbols: ['a', 'b', 'c', 'd'],
     log2_fold_change: [2.5, -3, 0.2, 4],
     cohens_d: [1.9, -1.2, 2.1, 0.3],
+    pct_selected: [0.95, 0.04, 0.6, 0.3],
+    pct_reference: [0.05, 0.9, 0.4, 0.01],
     pvalue: [0, 1e-50, 0, 0.5],
     neg_log10_pvalue: [8661.2, 50, 812.4, 0.30103],
     fdr: [0, 2e-50, 0, 0.5],
@@ -63,6 +65,8 @@ describe('cellSelectionDifferentialExpression', () => {
         expect(differentialExpression.json.gene_id).toEqual(result.genes);
         expect(differentialExpression.json.logfc).toEqual(result.log2_fold_change);
         expect(differentialExpression.json.cohens_d).toEqual(result.cohens_d);
+        expect(differentialExpression.json.pct_selected).toEqual(result.pct_selected);
+        expect(differentialExpression.json.pct_reference).toEqual(result.pct_reference);
         // Kept as -log10: the p-values themselves underflowed to 0.
         expect(differentialExpression.json.neg_log10_pvalue).toEqual(result.neg_log10_pvalue);
         expect(differentialExpression.json.neg_log10_fdr).toEqual(result.neg_log10_fdr);
