@@ -1,8 +1,17 @@
-import { ReactElement, useEffect, useState, ChangeEvent, useRef, useCallback } from 'react';
+import {
+    ReactElement,
+    useEffect,
+    useMemo,
+    useState,
+    ChangeEvent,
+    useRef,
+    useCallback,
+} from 'react';
 import { connect, ConnectedProps } from 'react-redux';
 import _ from 'lodash';
 import {
     Box,
+    Checkbox,
     FormControlLabel,
     MenuItem,
     SelectChangeEvent,
@@ -14,10 +23,14 @@ import {
 import { SwapHoriz } from '@mui/icons-material';
 import HiddenControlsIndicator from '../../common/hiddenControlsIndicator/hiddenControlsIndicator';
 import { ChartHandle } from '../../common/chart/chart';
-import DifferentialExpressionsVolcanoPlot from './differentialExpressionsVolcanoPlot';
+import DifferentialExpressionsVolcanoPlot, {
+    MarkerFilter,
+} from './differentialExpressionsVolcanoPlot';
 import {
     DifferentialExpressionsContainer,
     DifferentialExpressionsControls,
+    DetectionControl,
+    MarkerFilterControls,
     ThresholdFormControl,
     ThresholdFormControlsContainer,
     VolcanoPlotContainer,
@@ -69,10 +82,21 @@ const ROUND_PRECISION = 2;
 const P_VALUE_FRACTION_DIGITS = 5;
 
 const minSelectWidth = 200;
+// Marker rankings: highest % of cells in the group where a gene is lower that may detect it.
+const DEFAULT_MAX_DETECTION_PERCENT = 10;
 
 const StyledDictySelect = styled(DictySelect)`
     min-width: ${minSelectWidth}px;
 `;
+
+const passesMarkerFilter = (point: VolcanoPoint, filter: MarkerFilter): boolean => {
+    const depleted = (point.logFcValue >= 0 ? point.pctReference : point.pctSelected) ?? 1;
+    return (
+        Math.abs(point.logFcValue) >= filter.fcLog &&
+        point.logProbValue >= filter.minEffect &&
+        depleted <= filter.maxDetection
+    );
+};
 
 const getDefaultThresholds = (
     differentialExpression: DifferentialExpression | null,
@@ -118,6 +142,8 @@ const DifferentialExpressions = ({
     const { width } = useSize(containerRef);
 
     const [volcanoPoints, setVolcanoPoints] = useState<VolcanoPoint[]>([]);
+    const [maxDetectionPercent, setMaxDetectionPercent] = useState(DEFAULT_MAX_DETECTION_PERCENT);
+    const [onlyMarkersSelectable, setOnlyMarkersSelectable] = useState(false);
     const [selectedVolcanoPoints, setSelectedVolcanoPoints] = useState<VolcanoPoint[]>([]);
     const [hasOutliers, setHasOutliers] = useState(true);
     const [displayOutliers, setDisplayOutliers] = useState(false);
@@ -144,6 +170,18 @@ const DifferentialExpressions = ({
     );
 
     const [thresholds, setThresholds] = useState<Thresholds>(defaultThresholds);
+
+    const markerFilter: MarkerFilter | undefined = useMemo(
+        () =>
+            isMarkerRanking
+                ? {
+                      fcLog: Number(thresholds.fcLog),
+                      minEffect: Number(thresholds.pValueLog),
+                      maxDetection: Number(maxDetectionPercent) / 100,
+                  }
+                : undefined,
+        [isMarkerRanking, maxDetectionPercent, thresholds.fcLog, thresholds.pValueLog],
+    );
 
     // A -log10(p) threshold means nothing as an effect size threshold and vice versa. Computed
     // here rather than read from defaultThresholds, which only catches up a render later.
@@ -184,6 +222,8 @@ const DifferentialExpressions = ({
                         logProbValue: Math.abs(effectSize),
                         probValue: 10 ** -json.neg_log10_pvalue[index],
                         effectSize,
+                        pctSelected: json.pct_selected?.[index],
+                        pctReference: json.pct_reference?.[index],
                         replicatePValue: json.replicate_pvalue?.[index] ?? null,
                         replicateFdr: json.replicate_fdr?.[index] ?? null,
                         negLog10Prob: json.neg_log10_pvalue[index],
@@ -251,7 +291,10 @@ Marker genes of selected single cells (${selectedDifferentialExpression?.name ??
 x-axis is the log2 fold change of mean log-normalized expression between the selected cells
 and the reference cells, the y-axis is the absolute effect size (Cohen's d, with the
 standard deviation averaged over both groups). Markers of the selected cells are in the upper
-right, genes lower in them than in the reference in the upper left. P-values come from a
+right, genes lower in them than in the reference in the upper left. Coloured genes pass the fold
+change and effect size thresholds and are detected in at most ${maxDetectionPercent}% of the group
+where they are lower.
+P-values come from a
 pseudobulk test across biological replicates (limma, paired by replicate) and are
 exploratory because the cells were selected from the same data.
             `.trim();
@@ -260,7 +303,13 @@ exploratory because the cells were selected from the same data.
             ? ' The source column is ebays.pval. Its multiple-testing adjustment is undocumented.'
             : '';
         return `Differential expression (${selectedDifferentialExpression?.name ?? ''}). The x-axis shows log2 fold change. The y-axis shows ${yAxisLabel}. A height of 3 corresponds to a source value of 0.001.${sourceNote}`;
-    }, [isMarkerRanking, selectedDifferentialExpression, usesEmpiricalBayesP, yAxisLabel]);
+    }, [
+        isMarkerRanking,
+        maxDetectionPercent,
+        selectedDifferentialExpression,
+        usesEmpiricalBayesP,
+        yAxisLabel,
+    ]);
 
     useReport(
         async (processFile) => {
@@ -296,6 +345,8 @@ exploratory because the cells were selected from the same data.
                       gene_symbol: volcanoPoint.geneName,
                       log2_fold_change: volcanoPoint.logFcValue,
                       cohens_d: volcanoPoint.effectSize,
+                      detected_selected: volcanoPoint.pctSelected ?? '',
+                      detected_reference: volcanoPoint.pctReference ?? '',
                       p_value_replicates: volcanoPoint.replicatePValue ?? '',
                       fdr_replicates: volcanoPoint.replicateFdr ?? '',
                       p_value_per_cell_not_calibrated: formatNegLog10AsP(
@@ -343,9 +394,15 @@ exploratory because the cells were selected from the same data.
      * @param genesIds - IDs of genes that were selected on differential expressions volcano plot.
      */
     const handlePlotOnSelect = (genesIds: string[]): void => {
-        setSelectedVolcanoPoints(
-            volcanoPoints.filter((volcanoPoint) => genesIds.includes(volcanoPoint.geneId)),
+        const brushedPoints = volcanoPoints.filter(
+            (volcanoPoint) =>
+                genesIds.includes(volcanoPoint.geneId) &&
+                (!onlyMarkersSelectable ||
+                    markerFilter == null ||
+                    passesMarkerFilter(volcanoPoint, markerFilter)),
         );
+        if (brushedPoints.length === 0) return;
+        setSelectedVolcanoPoints(brushedPoints);
         setVolcanoPointSelectionModalOpened(true);
     };
 
@@ -505,6 +562,42 @@ exploratory because the cells were selected from the same data.
                         in Differential Expression
                     </Box>
                 )}
+                {isMarkerRanking && volcanoPoints.length > 0 && (
+                    <MarkerFilterControls>
+                        <Tooltip
+                            title="Coloured genes are detected in at most this % of the group where they are lower: the reference cells for genes up in the selection, the selected cells for genes down in it. 100 turns this limit off."
+                            placement="top"
+                        >
+                            <DetectionControl>
+                                <TextField
+                                    id="max_detection_percent"
+                                    size="small"
+                                    color="secondary"
+                                    label="Max % detected"
+                                    type="number"
+                                    value={maxDetectionPercent}
+                                    inputProps={{ min: 0, max: 100, step: 5 }}
+                                    onChange={(event: ChangeEvent<{ value: unknown }>): void =>
+                                        setMaxDetectionPercent(Number(event.target.value))
+                                    }
+                                />
+                            </DetectionControl>
+                        </Tooltip>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    size="small"
+                                    color="secondary"
+                                    checked={onlyMarkersSelectable}
+                                    onChange={(event): void =>
+                                        setOnlyMarkersSelectable(event.target.checked)
+                                    }
+                                />
+                            }
+                            label="Only selection-specific genes"
+                        />
+                    </MarkerFilterControls>
+                )}
                 {volcanoPoints.length > 0 && (
                     <VolcanoPlotContainer>
                         <DifferentialExpressionsVolcanoPlot
@@ -518,6 +611,7 @@ exploratory because the cells were selected from the same data.
                             selectedGenesIds={selectedGenesIds}
                             logFcOutliersLimit={logFcOutliersLimit}
                             displayOutliers={displayOutliers}
+                            markerFilter={markerFilter}
                             onSelect={disableSelection ? undefined : handlePlotOnSelect}
                             ref={chartRef}
                         />

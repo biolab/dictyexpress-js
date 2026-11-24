@@ -19,6 +19,9 @@ export type CellDeResponse = {
     symbols: string[];
     log2_fold_change: number[];
     cohens_d: number[];
+    // Fraction of selected / reference cells in which the gene is detected.
+    pct_selected: number[];
+    pct_reference: number[];
     pvalue: number[];
     neg_log10_pvalue: number[];
     fdr: number[];

@@ -28,6 +28,7 @@ vi.mock('zarr', () => {
     return {
         openArray: openArrayMock,
         HTTPStore: vi.fn(() => ({})),
+        isKeyError: vi.fn(() => false),
     };
 });
 
@@ -617,6 +618,16 @@ describe('dataLoader', () => {
             expect(Array.from(secondResult)).toEqual(Array.from(mockData));
             expect(openArrayGetMock).not.toHaveBeenCalled();
             expect(openArrayMock).not.toHaveBeenCalled();
+        });
+
+        it('does not cache a gene whose expression failed to load', async () => {
+            openArrayGetMock.mockRejectedValueOnce(new Error('Missing expression chunk: 2.0'));
+            await expect(loadGeneExpression(2)).rejects.toThrow('Missing expression chunk');
+
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            openArrayGetMock.mockResolvedValueOnce({ data: new Float32Array([4, 0, 5]) });
+            expect(Array.from(await loadGeneExpression(2))).toEqual([4, 0, 5]);
+            expect(openArrayGetMock).toHaveBeenCalledTimes(2);
         });
 
         it('should handle array responses without data property', async () => {

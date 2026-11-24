@@ -115,6 +115,22 @@ const VolcanoPointSelectionModal = ({
                       headerName: "Cohen's d",
                       width: 90,
                   },
+                  {
+                      valueGetter: (params: ValueGetterParams): number | null =>
+                          params.data.point.pctSelected ?? null,
+                      valueFormatter: ({ value }: { value: number | null }): string =>
+                          value == null ? '–' : `${Math.round(value * 100)}%`,
+                      headerName: 'Detected (selected)',
+                      width: 100,
+                  },
+                  {
+                      valueGetter: (params: ValueGetterParams): number | null =>
+                          params.data.point.pctReference ?? null,
+                      valueFormatter: ({ value }: { value: number | null }): string =>
+                          value == null ? '–' : `${Math.round(value * 100)}%`,
+                      headerName: 'Detected (reference)',
+                      width: 100,
+                  },
                   // Pseudobulk test across biological replicates; empty for untested genes.
                   {
                       valueGetter: (params: ValueGetterParams): number | null =>
