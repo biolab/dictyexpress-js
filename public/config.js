@@ -8,6 +8,7 @@ WEBSOCKET_URL = null;
 // Fast-service route (same-origin via CloudFront), or null to use Resolwe process.
 FIND_SIMILAR_API_URL = '/find-similar';
 GO_ENRICHMENT_API_URL = '/go';
+CELL_DE_API_URL = '/cell-de';
 
 // Default: bcm
 COMMUNITY_SLUG = 'bcm';
