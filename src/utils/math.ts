@@ -15,6 +15,18 @@ export const logOfBase = (value: number, base: number): number => {
  *
  * @param values An array containing sample data
  */
+/**
+ * Formats a p-value given as -log10(p), so values far below Number.MIN_VALUE still read
+ * as e.g. 3.16e-8662 instead of 0.
+ */
+export const formatNegLog10AsP = (negLog10: number): string => {
+    if (negLog10 < 300) {
+        return (10 ** -negLog10).toPrecision(3);
+    }
+    const exponent = Math.ceil(negLog10);
+    return `${(10 ** (exponent - negLog10)).toFixed(2)}e-${exponent}`;
+};
+
 export const mean = (values: number[]): number => {
     const finiteArray = values.filter((value) => _.isFinite(value));
     return finiteArray.length > 0 ? _.sum(finiteArray) / finiteArray.length : NaN;

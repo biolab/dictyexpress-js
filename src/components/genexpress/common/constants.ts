@@ -63,6 +63,8 @@ export enum BookmarkStatePath {
     singleCellTransformMode = 'SingleCell.transformMode',
     singleCellAggregationMode = 'SingleCell.aggregationMode',
     singleCellUseAlpha = 'SingleCell.useAlpha',
+    singleCellSelectedCells = 'SingleCell.selectedCells',
+    singleCellMarkersComparison = 'SingleCell.markersComparison',
 }
 
 export const EMPTY_ARRAY = [];

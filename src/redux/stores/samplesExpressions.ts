@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { createSlice, PayloadAction, createSelector, combineReducers } from '@reduxjs/toolkit';
 import { SamplesGenesExpressionsById } from '../models/internal';
 import createIsFetchingSlice from './fetch';
@@ -13,7 +14,10 @@ const samplesExpressionsByIdSlice = createSlice({
             state,
             action: PayloadAction<SamplesGenesExpressionsById>,
         ): SamplesGenesExpressionsById => {
-            return { ...state, ...action.payload };
+            return _.mapValues({ ...state, ...action.payload }, (genes, sampleId) => ({
+                ...state[Number(sampleId)],
+                ...genes,
+            }));
         },
         comparisonFetchSucceeded: (
             state,

@@ -215,8 +215,16 @@ const GeneSelector = ({
                 );
 
                 connectedGenesFetchSucceeded(pastedGenes);
-                connectedAllGenesDeselected();
-                connectedGenesSelected(pastedGenes.map((gene) => gene.feature_id));
+                const pastedGenesIds = pastedGenes.map((gene) => gene.feature_id);
+                if (
+                    !_.isEqual(
+                        _.sortBy(pastedGenesIds),
+                        _.sortBy(_.map(selectedGenesRef.current, 'feature_id')),
+                    )
+                ) {
+                    connectedAllGenesDeselected();
+                    connectedGenesSelected(pastedGenesIds);
+                }
 
                 // Get and display not found genes.
                 const notFoundGenesNames = genesNames.filter(

@@ -1,5 +1,6 @@
 import { ReactElement, ReactNode } from 'react';
 import Button from '@mui/material/Button';
+import styled from 'styled-components';
 import {
     ModalFooter,
     ModalBody,
@@ -7,6 +8,14 @@ import {
     ModalContainer,
     CenteredModal,
 } from 'components/genexpress/common/dictyModal/dictyModal.styles';
+
+// Long help scrolls in the body; the title and Close stay visible.
+const InfoModalContainer = styled(ModalContainer)`
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 64px);
+    max-width: calc(100vw - 32px);
+`;
 
 type InfoModalProps = {
     title: string;
@@ -16,13 +25,13 @@ type InfoModalProps = {
 
 const InfoModal = ({ title, children, onClose }: InfoModalProps): ReactElement => (
     <CenteredModal open aria-labelledby="infoModalTitle" onClose={onClose}>
-        <ModalContainer>
+        <InfoModalContainer>
             <ModalHeader id="infoModalTitle">{title}</ModalHeader>
             <ModalBody>{children}</ModalBody>
             <ModalFooter>
                 <Button onClick={onClose}>Close</Button>
             </ModalFooter>
-        </ModalContainer>
+        </InfoModalContainer>
     </CenteredModal>
 );
 

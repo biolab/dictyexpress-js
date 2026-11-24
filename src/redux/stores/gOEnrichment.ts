@@ -42,11 +42,7 @@ const gOEnrichmentJsonSlice = createSlice({
     extraReducers: (builder) => {
         clearStateOnActions(
             builder,
-            [
-                timeSeriesSelected,
-                allGenesDeselected,
-                pValueThresholdSlice.actions.pValueThresholdChanged,
-            ],
+            [allGenesDeselected, pValueThresholdSlice.actions.pValueThresholdChanged],
             gOEnrichmentJsonInitialState,
         );
     },
@@ -64,7 +60,7 @@ const speciesSlice = createSlice({
                 return action.payload.output.species;
             },
         );
-        clearStateOnActions(builder, [timeSeriesSelected, allGenesDeselected], speciesInitialState);
+        clearStateOnActions(builder, [allGenesDeselected], speciesInitialState);
     },
 });
 
@@ -80,7 +76,7 @@ const sourceSlice = createSlice({
                 return action.payload.output.source;
             },
         );
-        clearStateOnActions(builder, [timeSeriesSelected, allGenesDeselected], sourceInitialState);
+        clearStateOnActions(builder, [allGenesDeselected], sourceInitialState);
     },
 });
 

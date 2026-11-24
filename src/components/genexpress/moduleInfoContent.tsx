@@ -58,12 +58,32 @@ export const differentialExpressionsInfo: ReactNode = (
     <div>
         <p>
             Explore differential gene expression with an interactive volcano plot. The <b>x-axis</b>{' '}
-            shows log2(Fold Change) and the <b>y-axis</b> shows −log10(FDR or p-value). In the
-            cell-type selections, genes on the right are enriched in prespore cells and genes on the
-            left are enriched in prestalk cells.
+            shows log2(Fold Change). For bulk comparisons, the <b>y-axis</b> shows −log₁₀ of the
+            labelled source value. For the prespore versus prestalk comparison, empirical-Bayes P
+            comes from <code>ebays.pval</code>. Its multiple-testing adjustment is undocumented.
+            Genes on the right have higher expression in prespore cells, and genes on the left have
+            higher expression in prestalk cells.
         </p>
         <p>
-            Adjust <b>Fold Change</b> and <b>FDR</b> thresholds to filter significant genes. Toggle{' '}
+            <b>Markers of selected cells</b>
+        </p>
+        <p>
+            Cells selected in the Single-Cell Expression module are compared with the cells of the
+            same time points or with all other cells, and appear here as a <b>Markers</b> entry.
+            Genes are ranked by effect size: the <b>y-axis</b> shows |Cohen&apos;s d|, which
+            doesn&apos;t grow with the number of cells.
+        </p>
+        <p>
+            P-values are only in the gene table. They come from a pseudobulk test across the
+            strain&apos;s biological replicates (separately grown fluorescent lines, or separate
+            libraries), not from treating each cell as a replicate. By default, the test asks
+            whether the pseudobulk expression change exceeds twofold in either direction (TREAT).
+            This is separate from the plot&apos;s Fold Change filter. P-values remain exploratory,
+            because the cells were selected from the same data. They are missing when fewer than two
+            replicates have at least 10 selected and 10 reference cells.
+        </p>
+        <p>
+            Adjust the fold-change and vertical-axis thresholds to filter genes. Toggle{' '}
             <b>Outliers</b> to expand the x-axis range. <b>Brush-select</b> points to add genes to
             your list.
         </p>
@@ -88,13 +108,23 @@ export const differentialExpressionsInfo: ReactNode = (
 export const goEnrichmentInfo: ReactNode = (
     <div>
         <p>
-            Identify Gene Ontology (GO) terms enriched in your gene list. Enrichment is computed for{' '}
-            <b>highlighted genes</b> if any, otherwise for all <b>selected genes</b>.
+            Explore the Gene Ontology (GO) annotations shared by your genes. The panel uses your{' '}
+            <b>highlighted genes</b> when you have highlighted any, and otherwise uses all your{' '}
+            <b>selected genes</b>. Choose an <b>Aspect</b> to browse biological processes, molecular
+            functions, or cellular components.
         </p>
         <p>
-            Choose an <b>Aspect</b> (Biological Process, Molecular Function, or Cellular Component)
-            and set a <b>p-value</b> threshold. View results as a <b>Hierarchy</b> tree or{' '}
-            <b>Flat</b> sortable grid.
+            <b>Score</b> compares the frequency of a term in your annotated genes with its frequency
+            among all genes in the annotation background. A score of 2 means the term is twice as
+            frequent in your list.
+        </p>
+        <p>
+            The <b>p-value</b> column gives the probability of seeing <b>exactly</b> the observed
+            number of matches when drawing the same number of annotated genes at random from the
+            background. For example, if five of six genes match, the value counts exactly five
+            matches. A conventional enrichment test would also count six. The filter keeps values at
+            or below the chosen threshold. These values have no correction for testing multiple
+            terms. Use the score and matching genes to interpret each row.
         </p>
         <p>
             <b>How to use</b>
@@ -170,6 +200,15 @@ export const singleCellInfo: ReactNode = (
             <li>
                 Zoom in and zoom out using the scroll wheel. Double-click on the plot to reset the
                 view.
+            </li>
+            <li>
+                To select cells, choose the lasso tool at the top left of the plot and draw around
+                them; hold Shift to add to the selection, and press Esc to clear it. With the lasso
+                tool you can also click a single cell to select it, or Shift + click to add or
+                remove it. With the pan tool, Shift + drag draws the same outline. You can also
+                click a Time or Cell type legend entry to select that group (Shift + click adds or
+                removes it). Then find the cells&apos; markers against the same time points or all
+                other cells. The result opens in Differential expression.
             </li>
         </ul>
         <p>

@@ -23,6 +23,7 @@ import { getSelectedDifferentialExpression } from 'redux/stores/differentialExpr
 
 const differentialExpressionsById = generateDifferentialExpressionsById(2);
 const differentialExpressions = _.flatMap(differentialExpressionsById);
+differentialExpressions[0].input = { fdr: 'ebays.pval' };
 differentialExpressions[1].output.source = 'differentSource';
 differentialExpressions[1].output.species = 'differentSpecies';
 const numberOfGenes = 5;
@@ -232,6 +233,12 @@ describe('differentialExpressions integration', () => {
             });
         });
 
+        it('labels the volcano axis with the empirical-Bayes source statistic', () => {
+            expect(
+                screen.getByText('−log₁₀(empirical-Bayes P)', { selector: 'svg text' }),
+            ).toBeVisible();
+        });
+
         it('should display tooltip on point hover', async () => {
             await hoverOverVegaSymbol(container, 'volcanoPointRemaining');
 
@@ -284,7 +291,9 @@ describe('differentialExpressions integration', () => {
 
         it('should export Differential Expressions/caption.txt file', async () => {
             await validateExportFile('Differential Expressions/caption.txt', (exportFile) => {
-                expect(exportFile?.content).toContain('Differential expression');
+                expect(exportFile?.content).toContain('−log₁₀(empirical-Bayes P)');
+                expect(exportFile?.content).toContain('a source value of 0.001');
+                expect(exportFile?.content).toContain('ebays.pval');
                 expect(exportFile?.content).toContain(
                     getSelectedDifferentialExpression(initialState.differentialExpressions)?.name,
                 );

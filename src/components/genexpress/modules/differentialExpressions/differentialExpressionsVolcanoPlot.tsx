@@ -14,7 +14,8 @@ type DifferentialExpressionsVolcanoPlotProps = {
     logFcOutliersLimit: number;
     displayOutliers: boolean;
     thresholds: Thresholds;
-    probField: string;
+    // Full y-axis title, e.g. -log10(FDR) or |Cohen's d|.
+    yAxisLabel: string;
     onSelect: ((genesIds: string[]) => void) | undefined;
 };
 
@@ -36,7 +37,7 @@ const getVegaSpecification = (
     data: DifferentialExpressionsVolcanoPlotProps['data'],
     getRange: () => Range,
     thresholds: DifferentialExpressionsVolcanoPlotProps['thresholds'],
-    probField: DifferentialExpressionsVolcanoPlotProps['probField'],
+    yAxisLabel: DifferentialExpressionsVolcanoPlotProps['yAxisLabel'],
     selectedGenePoints: VolcanoPoint[],
     highlightedGenePoints: VolcanoPoint[],
 ): Spec => ({
@@ -50,20 +51,6 @@ const getVegaSpecification = (
             value: false,
         },
         {
-            name: 'brushing',
-            value: false,
-            on: [
-                {
-                    events: 'mousedown, [mousedown, window:mouseup] > window:mousemove',
-                    update: 'true',
-                },
-                {
-                    events: '[mousedown, window:mouseup] > mouseup',
-                    update: 'false',
-                },
-            ],
-        },
-        {
             name: 'brushing_ended',
             value: false,
             on: [
@@ -71,9 +58,27 @@ const getVegaSpecification = (
                     events: 'window:mousemove',
                     update: 'false',
                 },
+                // Any release on the window, so a brush released outside the plot still ends,
+                // but true only if a brush started in the plot. Declared before `brushing`, so
+                // it still reads true on that release.
                 {
-                    events: '[mousedown, window:mouseup] > mouseup',
+                    events: 'window:mouseup',
+                    update: 'brushing',
+                },
+            ],
+        },
+        {
+            name: 'brushing',
+            value: false,
+            on: [
+                {
+                    events: 'mousedown, [mousedown, window:mouseup] > window:mousemove',
                     update: 'true',
+                },
+                // On the window, so a brush released outside the plot still ends.
+                {
+                    events: 'window:mouseup',
+                    update: 'false',
                 },
             ],
         },
@@ -83,7 +88,7 @@ const getVegaSpecification = (
             on: [
                 {
                     events: 'mousedown, disableSelection',
-                    update: 'disableSelection ? {x: null, y: null} : {x: invert("xscale", clamp(x(item()), 0, width)), y: invert("yscale", clamp(y(item()), 0, height))}',
+                    update: 'disableSelection ? {x: null, y: null} : {x: invert("xscale", clamp(x(), 0, width)), y: invert("yscale", clamp(y(), 0, height))}',
                 },
             ],
         },
@@ -93,7 +98,7 @@ const getVegaSpecification = (
             on: [
                 {
                     events: 'mousedown, [mousedown, window:mouseup] > window:mousemove',
-                    update: '{x: invert("xscale", clamp(x(item()), 0, width)), y: invert("yscale", clamp(y(item()), 0, height))}',
+                    update: '{x: invert("xscale", clamp(x(), 0, width)), y: invert("yscale", clamp(y(), 0, height))}',
                 },
             ],
         },
@@ -161,7 +166,7 @@ const getVegaSpecification = (
                         value: GEN_GREY['500'],
                     },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, '-log10(${probField})': datum.logProbValue}`,
+                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
                     },
                 },
                 update: {
@@ -189,7 +194,7 @@ const getVegaSpecification = (
                     },
                     fill: { value: GEN_GREY['700'] },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, '-log10(${probField})': datum.logProbValue}`,
+                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
                     },
                 },
                 update: {
@@ -219,7 +224,7 @@ const getVegaSpecification = (
                         value: GEN_CYAN['500'],
                     },
                     tooltip: {
-                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, '-log10(${probField})': datum.logProbValue}`,
+                        signal: `{'Gene': datum.geneName, 'log2(Fold Change)': datum.logFcValue, ${JSON.stringify(yAxisLabel)}: datum.logProbValue}`,
                     },
                 },
                 update: {
@@ -376,7 +381,7 @@ const getVegaSpecification = (
         {
             scale: 'yscale',
             orient: 'left',
-            title: `-log10(${probField})`,
+            title: yAxisLabel,
             grid: true,
             labelFontSize: 14,
             titleFontSize: 14,
@@ -409,7 +414,7 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
             logFcOutliersLimit,
             displayOutliers = false,
             thresholds,
-            probField,
+            yAxisLabel,
             onSelect,
         },
         ref,
@@ -522,7 +527,7 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
                 data,
                 getRange,
                 thresholds,
-                probField,
+                yAxisLabel,
                 selectedGenePoints,
                 highlightedGenePoints,
             ),

@@ -46,8 +46,16 @@ const proxy: Record<string, ProxyOptions> = {
     // Served in prod from the biolab-singlecell-data bucket via CloudFront;
     // proxy it so the single-cell module loads its data locally too.
     '/single-cell-data': proxyConfig,
-    '/find-similar': apiGatewayProxy('sl48nzcp1a.execute-api.us-east-1.amazonaws.com'),
+    // Local server: FIND_SIMILAR_PROXY_TARGET=http://127.0.0.1:8787
+    '/find-similar': process.env.FIND_SIMILAR_PROXY_TARGET
+        ? { target: process.env.FIND_SIMILAR_PROXY_TARGET, changeOrigin: true }
+        : apiGatewayProxy('sl48nzcp1a.execute-api.us-east-1.amazonaws.com'),
     '/go': apiGatewayProxy('diue278in7.execute-api.us-east-1.amazonaws.com'),
+    // Not deployed yet: the local server (dictyexpress-lambdas/cell-de/local_server.py).
+    '/cell-de': {
+        target: process.env.CELL_DE_PROXY_TARGET ?? 'http://127.0.0.1:8788',
+        changeOrigin: true,
+    },
 };
 
 const injectConfigScriptToIndex = (): PluginOption => {

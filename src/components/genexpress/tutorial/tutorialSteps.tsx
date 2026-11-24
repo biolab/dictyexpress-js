@@ -12,6 +12,9 @@ export const TUTORIAL_TARGETS = {
     singleCellModule: '[data-tutorial="single-cell-module"]',
     singleCellColorDropdown: '[data-tutorial="single-cell-color-dropdown"]',
     singleCellStrainDropdown: '[data-tutorial="single-cell-strain-dropdown"]',
+    singleCellSelectTool: '[data-tutorial="single-cell-select-tool"]',
+    singleCellExpressionToggle: '[data-tutorial="single-cell-expression-toggle"]',
+    singleCellSelectionPanel: '[data-tutorial="single-cell-module"] [aria-label="Cell selection"]',
     clusteringModule: '[data-tutorial="clustering-module"]',
     clusteringDistanceMeasureDropdown: '[data-tutorial="clustering-distance-measure-dropdown"]',
     bookmarkButton: '[data-tutorial="bookmark-button"]',
@@ -357,7 +360,155 @@ export const tutorialSteps: Step[] = [
         ),
         title: 'Gene Ontology Enrichment',
     },
-    // Step 18: Closing
+    // Step 18: Choose the lasso tool (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                You've explored prespore genes through their expression, clustering and GO
+                enrichment. Now start from <b>prestalk cells</b> and find their markers, then
+                compare them with the prespore genes you selected earlier.
+                <br />
+                <br />
+                Keep AX4 cells colored by <b>Cell type</b>. The expression shading still reflects
+                the prespore genes selected earlier, so prestalk cells may look faint. Use the cell
+                type colors and legend to identify them.
+                <br />
+                <br />
+                <b>Click the lasso tool at the top left of the plot.</b>
+            </>
+        ),
+        title: 'From Cells to Genes',
+        spotlightClicks: true,
+    },
+    // Step 19: Select cells (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                <b>Draw around the dense cluster of prestalk cells</b> at the bottom right of the
+                large group, as the animation on the plot shows: press, drag an outline around it
+                and release. The legend shows which color is prestalk.
+                <br />
+                <br />
+                Alternatively, click <b>prestalk</b> in the legend to select all cells of that type.
+                Hold Shift to add to the selection; press Esc to clear it.
+            </>
+        ),
+        title: 'Select Cells',
+        spotlightClicks: true,
+    },
+    // Step 20: Find markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                The panel next to the lasso tool shows how many cells you selected.
+                <br />
+                <br />
+                <b>Click "Same time points"</b> to compare them with the other cells collected at
+                the same time points. This helps reduce differences due to developmental time. The
+                comparison includes all other cell types at those times, and the ranking may take a
+                moment.
+            </>
+        ),
+        title: 'Find Markers',
+        spotlightClicks: true,
+    },
+    // Step 21: Markers volcano plot
+    {
+        target: TUTORIAL_TARGETS.differentialModule,
+        content: (
+            <>
+                Differential Expression now compares your selected cells with the other cells from
+                the same time points. Each dot is a gene:
+                <br />
+                <br />
+                <ul style={{ margin: '0 0 0 16px', padding: 0 }}>
+                    <li>
+                        <b>Left to right</b> still shows log2 fold change: genes on the right are
+                        higher in <b>your selected cells</b>; genes on the left are higher in the
+                        comparison cells.
+                    </li>
+                    <li>
+                        <b>Height</b> now shows |Cohen's d|, the size of the difference relative to
+                        the variation between cells. It is an effect size, not a p-value.
+                    </li>
+                </ul>
+                <br />
+                Notice how the <b>prespore genes you selected earlier</b> (larger dots) tend to lie
+                on the <b>left</b>. This makes sense: they are expressed less in your selected
+                prestalk cells than in the comparison cells, which include prespore cells. Prestalk
+                markers such as <i>ecmA</i> should appear toward the <b>upper right</b>.
+            </>
+        ),
+        title: 'Markers of Your Cells',
+    },
+    // Step 22: Select markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.differentialModule,
+        content: (
+            <>
+                Now switch from the prespore genes to candidate markers of your selected prestalk
+                cells in the <b>upper right</b> region.
+                <br />
+                <br />
+                <b>Click and drag</b> to select genes in that region.
+            </>
+        ),
+        title: 'Select Marker Genes',
+        spotlightClicks: true,
+    },
+    // Step 23: Review markers modal (interactive)
+    {
+        target: TUTORIAL_TARGETS.volcanoSelectionModal,
+        content: (
+            <>
+                These are the markers you selected.
+                <br />
+                <br />
+                To look only at them (instead of adding them to the prespore genes), <b>
+                    uncheck
+                </b>{' '}
+                "Append selected genes to Genes module".
+            </>
+        ),
+        title: 'Review Markers',
+        spotlightClicks: true,
+    },
+    // Step 24: Select all markers (interactive)
+    {
+        target: TUTORIAL_TARGETS.volcanoSelectionModal,
+        content: (
+            <>
+                <b>Click "Select all"</b> to continue with these markers.
+            </>
+        ),
+        title: 'Confirm Selection',
+        spotlightClicks: true,
+        data: { placementKey: `${TUTORIAL_TARGETS.volcanoSelectionModal}:select-all` },
+    },
+    // Step 25: Markers in the cells
+    {
+        target: TUTORIAL_TARGETS.singleCellModule,
+        content: (
+            <>
+                You started with <i>ecmA</i> as a known prestalk marker. Now you've used prestalk
+                cells to find a broader set of candidate markers, which you can explore across the
+                modules.
+                <br />
+                <br />
+                <b>Set "Color by" to "Expression".</b> Darker cells have higher expression of the
+                selected markers, so the prestalk cells you selected should stand out. This lets you
+                inspect the expression pattern behind the ranking. The{' '}
+                <b>Expression Time Courses</b> show how these genes change across development in the
+                separate whole-population experiment.
+            </>
+        ),
+        title: 'Back to the Cells',
+        spotlightClicks: true,
+    },
+    // Step 26: Closing
     {
         target: 'body',
         content: (

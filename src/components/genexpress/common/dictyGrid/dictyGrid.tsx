@@ -35,6 +35,8 @@ export type DictyGridProps<T> = {
     onSortChanged?: (event: SortChangedEvent) => void;
 };
 
+const pointerRowStyle = { cursor: 'pointer' };
+
 const defaultColumnDef = {
     flex: 1,
     resizable: true,
@@ -239,7 +241,7 @@ const DictyGrid = <T,>({
                     }}
                     rowSelection={selectionMode}
                     rowStyle={
-                        selectionMode == null && onRowClicked == null ? {} : { cursor: 'pointer' }
+                        selectionMode == null && onRowClicked == null ? undefined : pointerRowStyle
                     }
                     suppressRowClickSelection={suppressRowClickSelection}
                     onRowClicked={handleOnRowClicked}

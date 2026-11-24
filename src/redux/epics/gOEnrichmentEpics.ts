@@ -1,7 +1,9 @@
+import _ from 'lodash';
 import { combineLatest, EMPTY, from, merge, Observable, of } from 'rxjs';
 import {
     catchError,
     debounceTime,
+    distinctUntilChanged,
     endWith,
     filter,
     map,
@@ -53,6 +55,7 @@ const getGenesForEnrichment$ = (state$: Observable<RootState>) =>
             const highlighted = getHighlightedGenesSortedById(state.genes);
             return highlighted.length > 0 ? highlighted : getSelectedGenesSortedById(state.genes);
         }),
+        distinctUntilChanged((a, b) => _.isEqual(_.map(a, 'feature_id'), _.map(b, 'feature_id'))),
     );
 
 const clearGOEnrichmentOnGenesForEnrichmentChanged: Epic<Action, Action, RootState> = (
