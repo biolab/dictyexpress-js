@@ -8,10 +8,9 @@ WEBSOCKET_URL = null;
 // Fast-service route (same-origin via CloudFront), or null to use Resolwe process.
 FIND_SIMILAR_API_URL = '/find-similar';
 GO_ENRICHMENT_API_URL = '/go';
-// Differential expression of selected single cells, or null to hide the feature.
 CELL_DE_API_URL = '/cell-de';
 
 // Default: bcm
 COMMUNITY_SLUG = 'bcm';
-// Default: first time series shown in the selector (Rosengarten filter development)
-SELECTED_TIMESERIES_SLUG = 'relation-432';
+// Default: first timeseries fetched from the backend
+SELECTED_TIMESERIES_SLUG = null;
