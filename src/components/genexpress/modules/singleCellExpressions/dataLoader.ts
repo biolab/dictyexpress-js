@@ -13,11 +13,13 @@
  * - info.json: {strain, n_genes, n_cells}
  */
 
-import { openArray, HTTPStore } from 'zarr';
+import { openArray } from 'zarr';
+import { StrictHTTPStore } from './strictHttpStore';
 import { logWarning } from 'utils/errorUtils';
 
 const DATA_BASE_PATH = '/single-cell-data';
-const CACHE_VERSION = 1;
+// 2: drops entries cached as zeros from missing chunks (see strictHttpStore.ts).
+const CACHE_VERSION = 2;
 const CACHE_DB_NAME = 'dictyexpress-gene-cache';
 const CACHE_STORE_NAME = 'gene-expressions';
 
@@ -25,11 +27,13 @@ const CACHE_STORE_NAME = 'gene-expressions';
 let currentStrain: string = 'AX4';
 
 // Shared Zarr store instances (optimization #1)
-let expressionStoreInstance: HTTPStore | null = null;
+let expressionStoreInstance: StrictHTTPStore | null = null;
 let expressionArrayInstance: Awaited<ReturnType<typeof openArray>> | null = null;
 
 // IndexedDB cache (optimization #2)
 let dbInstance: IDBDatabase | null = null;
+// An open request waiting for another tab; until it succeeds, genes load without the cache.
+let cacheBlocked = false;
 
 /**
  * Set the current strain and reset cached instances
@@ -142,21 +146,37 @@ async function initCache(): Promise<IDBDatabase> {
     if (dbInstance) {
         return dbInstance;
     }
+    if (cacheBlocked) {
+        throw new Error('Gene expression cache is blocked by another tab');
+    }
 
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(CACHE_DB_NAME, CACHE_VERSION);
 
         request.onerror = () => reject(new Error(request.error?.message || 'IndexedDB error'));
+        // Another tab still holds an older cache version: load from the network meanwhile.
+        request.onblocked = () => {
+            cacheBlocked = true;
+            reject(new Error('Gene expression cache is blocked by another tab'));
+        };
         request.onsuccess = () => {
-            dbInstance = request.result;
-            resolve(request.result);
+            cacheBlocked = false;
+            const db = request.result;
+            // Let a newer cache version in another tab upgrade instead of blocking it.
+            db.onversionchange = () => {
+                db.close();
+                dbInstance = null;
+            };
+            dbInstance = db;
+            resolve(db);
         };
 
         request.onupgradeneeded = (event) => {
             const db = (event.target as IDBOpenDBRequest).result;
-            if (!db.objectStoreNames.contains(CACHE_STORE_NAME)) {
-                db.createObjectStore(CACHE_STORE_NAME);
+            if (db.objectStoreNames.contains(CACHE_STORE_NAME)) {
+                db.deleteObjectStore(CACHE_STORE_NAME);
             }
+            db.createObjectStore(CACHE_STORE_NAME);
         };
     });
 }
@@ -232,7 +252,7 @@ async function getExpressionArray() {
     }
 
     if (!expressionStoreInstance) {
-        expressionStoreInstance = new HTTPStore(`${getDataUrl()}/arrays/expression`);
+        expressionStoreInstance = new StrictHTTPStore(`${getDataUrl()}/arrays/expression`);
     }
 
     expressionArrayInstance = await openArray({ store: expressionStoreInstance, mode: 'r' });
