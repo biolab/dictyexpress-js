@@ -139,7 +139,7 @@ const VolcanoPointSelectionModal = ({
                           return params.data.point.probValue;
                       },
                       headerName: probFieldLabel,
-                      width: 90,
+                      width: Math.max(90, probFieldLabel.length * 8 + 36),
                   },
               ]),
     ] as ColDef[]);

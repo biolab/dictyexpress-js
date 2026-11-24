@@ -1,18 +1,24 @@
 # DictyExpress frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The dictyExpress web client uses React, TypeScript and Vite.
 
-Minimum requirements:
+## Install and run
 
--   Node.js of version 20 LTS
--   yarn 1.22
+Use Node.js 20 or later and the bundled Yarn 3.2.4. From the repository root:
+
+```sh
+node .yarn/releases/yarn-3.2.4.cjs install --immutable
+node .yarn/releases/yarn-3.2.4.cjs start
+```
+
+Open the local URL printed by Vite. With the project Yarn available on your path, the same commands are `yarn install --immutable` and `yarn start`. The Vite configuration defines the development proxies. The cell-marker workflow requires the configured `/cell-de` service.
 
 ## GIT
 
 To enable custom pre-push hook, update git configuration to let it know where our hook files lie:
 
 ```
-`git config core.hooksPath .githooks`
+git config core.hooksPath .githooks
 ```
 
 ## Available Scripts
@@ -21,11 +27,7 @@ In the project directory, you can run:
 
 ### `yarn start`
 
-Runs the app in the development mode with proxy for https://qa2.genialis.com (used as an API endpoint).<br />
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.<br />
-You will also see any lint errors in the console.
+Starts the Vite development server with hot reload.
 
 ### `yarn lint`
 
@@ -37,7 +39,7 @@ Runs ESLint with Prettier combined to apply automatic fixes.
 
 ### `yarn check`
 
-Typescript compiler, Prettier and ESLint checks combined.
+Runs the TypeScript compiler and lint checks.
 
 ### `yarn test`
 
@@ -63,10 +65,4 @@ It correctly bundles React in production mode and optimizes the build for the be
 The build is minified and the filenames include the hashes.<br />
 Update `/build/config.js` with appropriate endpoint URLs and your app is ready to be deployed.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+To preview the build locally, run `yarn serve` and open the URL printed by Vite.

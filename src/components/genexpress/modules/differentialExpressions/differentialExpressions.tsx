@@ -130,11 +130,13 @@ const DifferentialExpressions = ({
         selectedDifferentialExpression != null
             ? selectedDifferentialExpression.prob_field
             : 'p value';
-    const probFieldLabel = probField.toUpperCase();
+    // The import's source column can differ from the storage key used to read the values.
+    const usesEmpiricalBayesP = selectedDifferentialExpression?.input?.[probField] === 'ebays.pval';
+    const probFieldLabel = usesEmpiricalBayesP ? 'empirical-Bayes P' : probField.toUpperCase();
     // A marker ranking (selected single cells) plots an effect size instead of a probability;
     // its threshold then lives in pValueLog, the y threshold.
     const isMarkerRanking = selectedDifferentialExpression?.kind === 'markers';
-    const yAxisLabel = isMarkerRanking ? "|Cohen's d|" : `-log10(${probFieldLabel})`;
+    const yAxisLabel = isMarkerRanking ? "|Cohen's d|" : `−log₁₀(${probFieldLabel})`;
 
     const defaultThresholds: Thresholds = useStateWithEffect(
         () => getDefaultThresholds(selectedDifferentialExpression),
@@ -254,36 +256,33 @@ pseudobulk test across biological replicates (limma, paired by replicate) and ar
 exploratory because the cells were selected from the same data.
             `.trim();
         }
-        return `
-Differential expression: The x-axis indicates the log2 value of fold-change in
-differential expression ${selectedDifferentialExpression?.name ?? ''}. The ${probFieldLabel} on the
-y-axis is the probability that the gene is differentially expressed. Higher
--log10(${probFieldLabel}) indicates higher probability that the gene is
-differentially expressed and not a false positive, while the value of 3
-corresponds to 99.999% chance that the gene is differentially expressed. Genes
-which are significantly up-regulated are located in the upper right square of
-each graph (these have a positive log fold value), while down-regulated genes
-are located in the upper left square (these have a negative log fold value).
-Genes in the lower left and right squares of the graph are probably false
-positives.
-        `.trim();
-    }, [isMarkerRanking, probFieldLabel, selectedDifferentialExpression]);
+        const sourceNote = usesEmpiricalBayesP
+            ? ' The source column is ebays.pval. Its multiple-testing adjustment is undocumented.'
+            : '';
+        return `Differential expression (${selectedDifferentialExpression?.name ?? ''}). The x-axis shows log2 fold change. The y-axis shows ${yAxisLabel}. A height of 3 corresponds to a source value of 0.001.${sourceNote}`;
+    }, [isMarkerRanking, selectedDifferentialExpression, usesEmpiricalBayesP, yAxisLabel]);
 
     useReport(
         async (processFile) => {
             processFile(
                 'Differential Expressions/selected_differential_expression.tsv',
                 objectsArrayToTsv([
-                    _.pick(selectedDifferentialExpression, [
-                        'name',
-                        'slug',
-                        'created',
-                        'logfc_threshold',
-                        'prob_field',
-                        'prob_threshold',
-                        'up_regulated',
-                        'down_regulated',
-                    ]),
+                    {
+                        ..._.pick(selectedDifferentialExpression, [
+                            'name',
+                            'slug',
+                            'created',
+                            'logfc_threshold',
+                            'prob_field',
+                            'prob_threshold',
+                            'up_regulated',
+                            'down_regulated',
+                        ]),
+                        ...(usesEmpiricalBayesP && {
+                            source_probability_column: 'ebays.pval',
+                            multiple_testing_adjustment: 'undocumented',
+                        }),
+                    },
                 ]),
                 false,
             );
@@ -323,7 +322,13 @@ positives.
                 processFile('Differential Expressions/caption.txt', getCaption(), false);
             }
         },
-        [getCaption, isMarkerRanking, selectedDifferentialExpression, volcanoPoints],
+        [
+            getCaption,
+            isMarkerRanking,
+            selectedDifferentialExpression,
+            usesEmpiricalBayesP,
+            volcanoPoints,
+        ],
     );
 
     const handleDifferentialExpressionsOnChange = (event: SelectChangeEvent<unknown>): void => {

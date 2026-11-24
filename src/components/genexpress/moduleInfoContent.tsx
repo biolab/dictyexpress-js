@@ -58,9 +58,11 @@ export const differentialExpressionsInfo: ReactNode = (
     <div>
         <p>
             Explore differential gene expression with an interactive volcano plot. The <b>x-axis</b>{' '}
-            shows log2(Fold Change) and the <b>y-axis</b> shows −log10(FDR or p-value). In the
-            cell-type selections, genes on the right are enriched in prespore cells and genes on the
-            left are enriched in prestalk cells.
+            shows log2(Fold Change). For bulk comparisons, the <b>y-axis</b> shows −log₁₀ of the
+            labelled source value. For the prespore versus prestalk comparison, empirical-Bayes P
+            comes from <code>ebays.pval</code>. Its multiple-testing adjustment is undocumented. Genes
+            on the right have higher expression in prespore cells, and genes on the left have higher
+            expression in prestalk cells.
         </p>
         <p>
             <b>Markers of selected cells</b>
@@ -81,7 +83,7 @@ export const differentialExpressionsInfo: ReactNode = (
             replicates have at least 10 selected and 10 reference cells.
         </p>
         <p>
-            Adjust <b>Fold Change</b> and <b>FDR</b> thresholds to filter significant genes. Toggle{' '}
+            Adjust the fold-change and vertical-axis thresholds to filter genes. Toggle{' '}
             <b>Outliers</b> to expand the x-axis range. <b>Brush-select</b> points to add genes to
             your list.
         </p>
@@ -106,13 +108,23 @@ export const differentialExpressionsInfo: ReactNode = (
 export const goEnrichmentInfo: ReactNode = (
     <div>
         <p>
-            Identify Gene Ontology (GO) terms enriched in your gene list. Enrichment is computed for{' '}
-            <b>highlighted genes</b> if any, otherwise for all <b>selected genes</b>.
+            Explore the Gene Ontology (GO) annotations shared by your genes. The panel uses
+            your <b>highlighted genes</b> when you have highlighted any, and otherwise uses all
+            your <b>selected genes</b>. Choose an <b>Aspect</b> to browse biological processes,
+            molecular functions, or cellular components.
         </p>
         <p>
-            Choose an <b>Aspect</b> (Biological Process, Molecular Function, or Cellular Component)
-            and set a <b>p-value</b> threshold. View results as a <b>Hierarchy</b> tree or{' '}
-            <b>Flat</b> sortable grid.
+            <b>Score</b> compares the frequency of a term in your annotated genes with its
+            frequency among all genes in the annotation background. A score of 2 means the
+            term is twice as frequent in your list.
+        </p>
+        <p>
+            The <b>p-value</b> column gives the probability of seeing <b>exactly</b> the observed
+            number of matches when drawing the same number of annotated genes at random from
+            the background. For example, if five of six genes match, the value counts exactly
+            five matches. A conventional enrichment test would also count six. The filter keeps
+            values at or below the chosen threshold. These values have no correction for
+            testing multiple terms. Use the score and matching genes to interpret each row.
         </p>
         <p>
             <b>How to use</b>
