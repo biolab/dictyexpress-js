@@ -82,6 +82,18 @@ export const differentialExpressionsInfo: ReactNode = (
             care.
         </p>
         <p>
+            <b>Several regions</b>
+        </p>
+        <p>
+            When the selected cells form separate regions on the UMAP, choose{' '}
+            <b>Combined selection</b> to treat them as one population (larger regions weigh more),
+            or <b>All selected regions</b> to find markers they share. Each region is then compared
+            with the unselected cells (from its own time points, for <b>Same time points</b>), and a
+            gene counts only if it changes in the same direction in every region. The plot shows
+            each gene&apos;s weakest fold change and effect size over the regions, and the gene
+            table its largest replicate p-value.
+        </p>
+        <p>
             P-values are only in the gene table. They come from a pseudobulk test across the
             strain&apos;s biological replicates (separately grown fluorescent lines, or separate
             libraries), not from treating each cell as a replicate. By default, the test asks

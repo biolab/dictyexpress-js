@@ -23,8 +23,11 @@ describe('CellSelectionPanel', () => {
         );
 
         expect(screen.getByText('12 cells selected')).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Same time points' }));
+        // Choosing a reference doesn't compare yet; Go does, same time points by default.
+        fireEvent.click(screen.getByRole('button', { name: 'Go' }));
         fireEvent.click(screen.getByRole('button', { name: 'All other cells' }));
+        expect(onCompare).toHaveBeenCalledTimes(1);
+        fireEvent.click(screen.getByRole('button', { name: 'Go' }));
         expect(onCompare.mock.calls).toEqual([['sameTime'], ['rest']]);
     });
 
@@ -41,5 +44,9 @@ describe('CellSelectionPanel', () => {
 
         expect(screen.getByRole('button', { name: 'Same time points' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'All other cells' })).toBeEnabled();
+        expect(screen.getByRole('button', { name: 'All other cells' })).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
     });
 });
