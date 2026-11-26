@@ -406,10 +406,10 @@ export const tutorialSteps: Step[] = [
                 The panel next to the lasso tool shows how many cells you selected.
                 <br />
                 <br />
-                <b>Click "Same time points"</b> to compare them with the other cells collected at
-                the same time points. This helps reduce differences due to developmental time. The
-                comparison includes all other cell types at those times, and the ranking may take a
-                moment.
+                <b>Keep "Same time points" and click "Go"</b> to compare them with the other cells
+                collected at the same time points. This helps reduce differences due to
+                developmental time. The comparison includes all other cell types at those times, and
+                the ranking may take a moment.
             </>
         ),
         title: 'Find Markers',

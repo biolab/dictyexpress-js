@@ -18,6 +18,8 @@ type DifferentialExpressionsVolcanoPlotProps = {
     thresholds: Thresholds;
     // Full y-axis title, e.g. -log10(FDR) or |Cohen's d|.
     yAxisLabel: string;
+    // Defaults to log2(Fold Change).
+    xAxisLabel?: string;
     onSelect: ((genesIds: string[]) => void) | undefined;
 };
 
@@ -63,6 +65,7 @@ const getVegaSpecification = (
     highlightedGenePoints: VolcanoPoint[],
     markerFilter: MarkerFilter | undefined,
     tooltip: string,
+    xAxisLabel: string | undefined,
 ): Spec => ({
     signals: [
         {
@@ -422,7 +425,7 @@ const getVegaSpecification = (
             scale: 'xscale',
             // TODO: once https://github.com/vega/vega/issues/2927 is fixed, return label orientation back to bottom!
             orient: 'top',
-            title: 'log2(Fold Change)',
+            title: xAxisLabel ?? 'log2(Fold Change)',
             grid: true,
             labelFontSize: 14,
             titleFontSize: 14,
@@ -477,6 +480,7 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
             displayOutliers = false,
             thresholds,
             yAxisLabel,
+            xAxisLabel,
             markerFilter,
             onSelect,
         },
@@ -599,6 +603,7 @@ const DifferentialExpressionsVolcanoPlot = forwardRef<
                 highlightedGenePoints,
                 markerFilter,
                 getTooltip(yAxisLabel, markerFilter != null),
+                xAxisLabel,
             ),
         );
 

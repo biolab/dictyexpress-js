@@ -1,4 +1,6 @@
 import {
+    combineRegionResults,
+    getSharedMarkersName,
     getCellSelectionMessage,
     getCellSelectionName,
     toDifferentialExpression,
@@ -79,5 +81,57 @@ describe('cellSelectionDifferentialExpression', () => {
         // DDB_G3 has a large d but a small fold change, DDB_G4 the other way round.
         expect(differentialExpression.up_regulated).toBe(1);
         expect(differentialExpression.down_regulated).toBe(1);
+    });
+
+    it('keeps only genes that change the same way in every region, at their weakest', () => {
+        // Genes: up in both, down in both, up in one region only, up in both with mixed d.
+        const region = (
+            fc: number[],
+            d: number[],
+            selected: number[],
+            reference: number[],
+            p: (number | null)[],
+        ): CellDeResponse => ({
+            ...result,
+            log2_fold_change: fc,
+            cohens_d: d,
+            pct_selected: selected,
+            pct_reference: reference,
+            neg_log10_pvalue: [10, 10, 10, 10],
+            neg_log10_fdr: [9, 9, 9, 9],
+            replicate_pvalue: p,
+            replicate_fdr: p,
+            replicate_log2_fold_change: fc,
+        });
+        const shared = combineRegionResults([
+            region(
+                [3, -2, 2, 1],
+                [1.5, -1.2, 1.4, 0.9],
+                [0.9, 0.05, 0.8, 0.6],
+                [0.04, 0.8, 0.1, 0.2],
+                [0.001, 0.01, 0.02, 0.03],
+            ),
+            region(
+                [2, -4, -1, 2],
+                [1.1, -2, -0.5, -0.1],
+                [0.7, 0.02, 0.1, 0.5],
+                [0.08, 0.9, 0.3, 0.2],
+                [0.02, null, 0.04, 0.05],
+            ),
+        ]);
+
+        expect(shared.log2_fold_change).toEqual([2, -2, 0, 0]);
+        expect(shared.cohens_d).toEqual([1.1, -1.2, 0, 0]);
+        // Least favourable region: lowest detection where higher, highest where lower.
+        expect(shared.pct_selected[0]).toBe(0.7);
+        expect(shared.pct_reference[0]).toBe(0.08);
+        expect(shared.pct_selected[1]).toBe(0.05);
+        expect(shared.pct_reference[1]).toBe(0.8);
+        // Largest p over the regions; untested in any region stays untested.
+        expect(shared.replicate_pvalue).toEqual([0.02, null, 1, 0.05]);
+        expect(shared.n_selected).toBe(2 * result.n_selected);
+        expect(getSharedMarkersName('AX4', 'sameTime', [3969, 1171])).toBe(
+            'Shared markers: 2 regions (3,969 + 1,171 AX4 cells) vs same time points',
+        );
     });
 });

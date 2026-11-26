@@ -119,6 +119,8 @@ export type DifferentialExpression = {
     // singleCellExpressions/cellSelectionDifferentialExpression.ts.
     kind?: 'markers';
     effect_size_threshold?: number;
+    // Shared markers of several regions: plotted effects are the weakest across regions.
+    shared_region_sizes?: number[];
 } & DataDifferentialExpression &
     Partial<Storage['json']>;
 

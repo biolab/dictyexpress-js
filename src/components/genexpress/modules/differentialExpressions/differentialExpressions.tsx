@@ -30,6 +30,7 @@ import {
     DifferentialExpressionsContainer,
     DifferentialExpressionsControls,
     DetectionControl,
+    MarkerCount,
     MarkerFilterControls,
     ThresholdFormControl,
     ThresholdFormControlsContainer,
@@ -162,7 +163,15 @@ const DifferentialExpressions = ({
     // A marker ranking (selected single cells) plots an effect size instead of a probability;
     // its threshold then lives in pValueLog, the y threshold.
     const isMarkerRanking = selectedDifferentialExpression?.kind === 'markers';
-    const yAxisLabel = isMarkerRanking ? "|Cohen's d|" : `−log₁₀(${probFieldLabel})`;
+    // Shared markers of several regions plot each gene's weakest effect across the regions.
+    const sharedRegionSizes = selectedDifferentialExpression?.shared_region_sizes;
+    const isSharedMarkers = isMarkerRanking && sharedRegionSizes != null;
+    const yAxisLabel = isMarkerRanking
+        ? isSharedMarkers
+            ? "Min |Cohen's d| over regions"
+            : "|Cohen's d|"
+        : `−log₁₀(${probFieldLabel})`;
+    const xAxisLabel = isSharedMarkers ? 'Min log2(Fold Change) over regions' : undefined;
 
     const defaultThresholds: Thresholds = useStateWithEffect(
         () => getDefaultThresholds(selectedDifferentialExpression),
@@ -181,6 +190,13 @@ const DifferentialExpressions = ({
                   }
                 : undefined,
         [isMarkerRanking, maxDetectionPercent, thresholds.fcLog, thresholds.pValueLog],
+    );
+    const markerCount = useMemo(
+        () =>
+            markerFilter == null
+                ? 0
+                : volcanoPoints.filter((point) => passesMarkerFilter(point, markerFilter)).length,
+        [markerFilter, volcanoPoints],
     );
 
     // A -log10(p) threshold means nothing as an effect size threshold and vice versa. Computed
@@ -290,7 +306,11 @@ const DifferentialExpressions = ({
 Marker genes of selected single cells (${selectedDifferentialExpression?.name ?? ''}): the
 x-axis is the log2 fold change of mean log-normalized expression between the selected cells
 and the reference cells, the y-axis is the absolute effect size (Cohen's d, with the
-standard deviation averaged over both groups). Markers of the selected cells are in the upper
+standard deviation averaged over both groups).${
+                isSharedMarkers
+                    ? ` Each of the ${sharedRegionSizes?.length} selected regions was compared with the unselected cells on its own; genes count only if they change in the same direction in every region, and both axes show the weakest effect over the regions (detection: the least favourable region; p-values: the largest).`
+                    : ''
+            } Markers of the selected cells are in the upper
 right, genes lower in them than in the reference in the upper left. Coloured genes pass the fold
 change and effect size thresholds and are detected in at most ${maxDetectionPercent}% of the group
 where they are lower.
@@ -305,6 +325,8 @@ exploratory because the cells were selected from the same data.
         return `Differential expression (${selectedDifferentialExpression?.name ?? ''}). The x-axis shows log2 fold change. The y-axis shows ${yAxisLabel}. A height of 3 corresponds to a source value of 0.001.${sourceNote}`;
     }, [
         isMarkerRanking,
+        isSharedMarkers,
+        sharedRegionSizes?.length,
         maxDetectionPercent,
         selectedDifferentialExpression,
         usesEmpiricalBayesP,
@@ -566,7 +588,8 @@ exploratory because the cells were selected from the same data.
                     <MarkerFilterControls>
                         <Tooltip
                             title="Coloured genes are detected in at most this % of the group where they are lower: the reference cells for genes up in the selection, the selected cells for genes down in it. 100 turns this limit off."
-                            placement="top"
+                            placement="bottom-start"
+                            enterDelay={600}
                         >
                             <DetectionControl>
                                 <TextField
@@ -576,7 +599,7 @@ exploratory because the cells were selected from the same data.
                                     label="Max % detected"
                                     type="number"
                                     value={maxDetectionPercent}
-                                    inputProps={{ min: 0, max: 100, step: 5 }}
+                                    inputProps={{ min: 0, max: 100, step: 1 }}
                                     onChange={(event: ChangeEvent<{ value: unknown }>): void =>
                                         setMaxDetectionPercent(Number(event.target.value))
                                     }
@@ -596,6 +619,13 @@ exploratory because the cells were selected from the same data.
                             }
                             label="Only selection-specific genes"
                         />
+                        <MarkerCount>
+                            {markerCount > 0
+                                ? `${markerCount.toLocaleString('en-US')} ${isSharedMarkers ? 'shared markers' : 'specific genes'}`
+                                : isSharedMarkers
+                                  ? 'No shared markers meet the current thresholds'
+                                  : 'No genes meet the current thresholds'}
+                        </MarkerCount>
                     </MarkerFilterControls>
                 )}
                 {volcanoPoints.length > 0 && (
@@ -605,6 +635,7 @@ exploratory because the cells were selected from the same data.
                             // mount, so remount it when the y-axis changes.
                             key={yAxisLabel}
                             yAxisLabel={yAxisLabel}
+                            xAxisLabel={xAxisLabel}
                             data={volcanoPoints}
                             thresholds={thresholds}
                             highlightedGenesIds={highlightedGenesIds}

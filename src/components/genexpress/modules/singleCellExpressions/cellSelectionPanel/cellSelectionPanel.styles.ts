@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { Button } from '@mui/material';
+import { Button, FormControlLabel } from '@mui/material';
 import { LegendBase, LegendTitle, SELECTION_TOOLS_OFFSET } from '../umapPlot/umapPlot.styles';
 
 // The slate of the expression scale, which is also what selected cells are drawn in.
@@ -68,5 +68,52 @@ export const CompareButton = styled(Button)<{ $primary?: boolean }>`
 
     &&.Mui-disabled {
         opacity: 0.5;
+    }
+`;
+
+export const ScopeOption = styled(FormControlLabel)`
+    && {
+        margin: 4px 0 0 -4px;
+    }
+
+    .MuiFormControlLabel-label {
+        font-size: 11px;
+        color: rgba(0, 0, 0, 0.75);
+    }
+
+    .MuiCheckbox-root {
+        padding: 0 4px;
+    }
+
+    .MuiSvgIcon-root {
+        font-size: 16px;
+    }
+`;
+
+export const GoRow = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 5px;
+`;
+
+export const GoButton = styled(Button)`
+    && {
+        font-size: 11px;
+        line-height: 1.4;
+        padding: 2px 12px;
+        min-width: 0;
+        text-transform: none;
+        background: ${SLATE};
+        color: #fff;
+    }
+
+    &&:hover {
+        background: ${SLATE_DARK};
+    }
+
+    &&.Mui-disabled {
+        opacity: 0.5;
+        color: #fff;
     }
 `;

@@ -188,7 +188,7 @@ const TutorialHighlighter = (): JSX.Element | null => {
                     document
                         .querySelectorAll(`${TUTORIAL_TARGETS.singleCellSelectionPanel} button`)
                         .forEach((btn) => {
-                            if (btn.textContent?.trim() === 'Same time points') addHighlight(btn);
+                            if (btn.textContent?.trim() === 'Go') addHighlight(btn);
                         });
                     break;
 

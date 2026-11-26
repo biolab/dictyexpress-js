@@ -66,3 +66,8 @@ export const DetectionControl = styled(FormControl)`
         padding: 4px 8px;
     }
 `;
+
+export const MarkerCount = styled.span`
+    font-size: 0.8rem;
+    color: rgba(0, 0, 0, 0.6);
+`;

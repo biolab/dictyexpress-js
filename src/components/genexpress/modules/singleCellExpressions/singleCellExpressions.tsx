@@ -27,10 +27,15 @@ import {
 import GeneDataStatusModal from './geneDataStatusModal/geneDataStatusModal';
 import {
     CellSelectionReference,
+    CellSelectionScope,
+    combineRegionResults,
     getCellSelectionMessage,
     getCellSelectionName,
+    getSharedMarkersMessage,
+    getSharedMarkersName,
     toDifferentialExpression,
 } from './cellSelectionDifferentialExpression';
+import { canFindSharedMarkers, findCellRegions } from './cellRegions';
 import CellSelectionPanel from './cellSelectionPanel/cellSelectionPanel';
 import { RootState } from 'redux/rootReducer';
 import { getSelectedGenes, getHighlightedGenes } from 'redux/stores/genes';
@@ -65,6 +70,8 @@ type MarkersComparison = {
     strain: string;
     reference: CellSelectionReference;
     cells: number[];
+    // Absent in bookmarks made before shared markers: a combined comparison.
+    scope?: CellSelectionScope;
 };
 
 const mapStateToProps = (state: RootState) => ({
@@ -149,6 +156,7 @@ const SingleCellExpressions = ({
     );
     const selectedCellIdsSet = useMemo(() => new Set(selectedCellIds), [selectedCellIds]);
     const [isComparingCells, setIsComparingCells] = useState(false);
+    const [markersScope, setMarkersScope] = useState<CellSelectionScope>('combined');
     const [markersComparison, setMarkersComparison] =
         useBookmarkableState<MarkersComparison | null>(
             null,
@@ -426,11 +434,73 @@ const SingleCellExpressions = ({
     );
 
     /**
+     * Test each region against the unselected cells (of its own time points, for 'sameTime') and
+     * show the genes that differ the same way in every region.
+     */
+    const runSharedMarkersComparison = useCallback(
+        async (
+            strain: string,
+            reference: CellSelectionReference,
+            cells: number[],
+            regions: number[][],
+        ) => {
+            const selected = new Set(cells);
+            const referenceFor = (region: number[]): number[] => {
+                const times =
+                    reference === 'sameTime'
+                        ? new Set(region.map((id) => umapCoordinates[id].time))
+                        : null;
+                return umapCoordinates
+                    .map((cell, index) => ({ cell, index }))
+                    .filter(
+                        ({ cell, index }) =>
+                            !selected.has(index) && (times == null || times.has(cell.time)),
+                    )
+                    .map(({ index }) => index);
+            };
+            const regionSizes = regions.map((region) => region.length);
+
+            try {
+                setIsComparingCells(true);
+                const results = await Promise.all(
+                    regions.map((region) =>
+                        compareCells({ strain, cells: region, reference: referenceFor(region) }),
+                    ),
+                );
+                const combined = combineRegionResults(results);
+                dispatch(
+                    differentialExpressionCellSelectionResultAdded(
+                        toDifferentialExpression(
+                            combined,
+                            getSharedMarkersName(strain, reference, regionSizes),
+                            regionSizes,
+                        ),
+                    ),
+                );
+                dispatch(differentialExpressionSelected(CELL_SELECTION_DIFFERENTIAL_EXPRESSION_ID));
+                dispatch(fetchDifferentialExpressionGenes({ geneIds: combined.genes }));
+                dispatch(addInfoSnackbar(getSharedMarkersMessage(reference, regionSizes)));
+            } catch (error) {
+                dispatch(handleError('Error comparing the selected regions.', error));
+            } finally {
+                setIsComparingCells(false);
+            }
+        },
+        [umapCoordinates, dispatch],
+    );
+
+    /**
      * Test cells against a reference of the same strain and show the result in the differential
      * expressions module. Needs the strain's cells loaded, for the cells' time points.
      */
     const runMarkersComparison = useCallback(
-        async ({ strain, reference, cells }: MarkersComparison) => {
+        async ({ strain, reference, cells, scope }: MarkersComparison) => {
+            const regions = findCellRegions(cells, umapCoordinates);
+            if (scope === 'shared' && canFindSharedMarkers(regions)) {
+                await runSharedMarkersComparison(strain, reference, cells, regions);
+                return;
+            }
+
             let referenceCells: number[] | undefined;
             if (reference === 'sameTime') {
                 const selectedTimes = new Set(cells.map((id) => umapCoordinates[id].time));
@@ -466,11 +536,16 @@ const SingleCellExpressions = ({
                 setIsComparingCells(false);
             }
         },
-        [umapCoordinates, dispatch],
+        [umapCoordinates, dispatch, runSharedMarkersComparison],
     );
 
     const compareSelectedCells = (reference: CellSelectionReference) => {
-        const comparison = { strain: selectedStrain, reference, cells: selectedCellIds };
+        const comparison = {
+            strain: selectedStrain,
+            reference,
+            cells: selectedCellIds,
+            scope: sharedMarkersAvailable ? markersScope : ('combined' as const),
+        };
         ranMarkersComparisonRef.current = comparison;
         setMarkersComparison(comparison);
         void runMarkersComparison(comparison);
@@ -499,6 +574,12 @@ const SingleCellExpressions = ({
     };
 
     // "Same time points" needs unselected cells at the selected cells' time points.
+    const selectedRegions = useMemo(
+        () => findCellRegions(selectedCellIds, umapCoordinates),
+        [selectedCellIds, umapCoordinates],
+    );
+    const sharedMarkersAvailable = canFindSharedMarkers(selectedRegions);
+
     const hasSameTimeReference = useMemo(() => {
         const selectedTimes = new Set(selectedCellIds.map((id) => umapCoordinates[id]?.time));
         return umapCoordinates.some(
@@ -682,6 +763,13 @@ const SingleCellExpressions = ({
                     onClear={() => setSelectedCellIds([])}
                     isComparing={isComparingCells}
                     hasSameTimeReference={hasSameTimeReference}
+                    regionSizes={
+                        sharedMarkersAvailable
+                            ? selectedRegions.map((region) => region.length)
+                            : undefined
+                    }
+                    scope={sharedMarkersAvailable ? markersScope : 'combined'}
+                    onScopeChange={setMarkersScope}
                 />
             </UmapPlot>
 
