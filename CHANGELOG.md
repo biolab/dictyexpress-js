@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+## 1.3.0
+
+### Added
+
+-   Select cells on the Single-Cell Expression UMAP and rank their marker genes against cells
+    from the same time points or all other cells; results open in Differential Expressions.
+-   Shared markers across several selected UMAP regions.
+-   Marker volcano plot with a detection filter for selection-specific genes.
+
+### Fixed
+
+-   Genes no longer show as unexpressed (grey) on the UMAP after a failed chunk download.
+
 ## 1.2.9
 
 ### Changed
